@@ -42,12 +42,15 @@ to attribute a changed file to a component:
 [plugins.go-deps.packages]
 api    = "./cmd/api"
 worker = "./cmd/worker"
+# A component that ships more than one binary (a daemon plus a
+# sidecar it spawns, say) lists every import path instead:
+agent  = ["./cmd/agent", "./cmd/agent-sidecar"]
 ```
 
-When consulted, it resolves `go list -deps -f '{{.Dir}}' ./cmd/api`,
-gets back every directory `cmd/api`'s binary actually imports
-(including `internal/auth`), and checks whether the changed path lives
-under one of them.
+When consulted, it resolves `go list -deps -f '{{.Dir}}' ./cmd/api`
+(all of a component's configured packages in one call), gets back
+every directory they actually import (including `internal/auth`), and
+checks whether the changed path lives under one of them.
 
 ## Install
 
