@@ -32,7 +32,7 @@ from multicz.plugins import BasePlugin
 if TYPE_CHECKING:
     from multicz.plugins import OwnershipContext
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = ["GoDepsPlugin"]
 
