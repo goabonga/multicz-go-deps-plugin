@@ -78,6 +78,17 @@ def test_affects_shared_dependency_claims_every_importer(go_project: Path):
     assert plugin.affects(ctx, "worker", ["internal/shared/shared.go"]) is True
 
 
+def test_affects_accepts_a_list_of_packages_for_one_component(go_project: Path):
+    """A component that ships more than one binary (a daemon plus a
+    sidecar it spawns, say) declares every import path as a list - a
+    change under any of their dependency graphs must claim it."""
+    plugin = GoDepsPlugin()
+    ctx = make_ctx(go_project, {"agent": ["./cmd/api", "./cmd/worker"]})
+
+    assert plugin.affects(ctx, "agent", ["internal/auth/auth.go"]) is True
+    assert plugin.affects(ctx, "agent", ["internal/queue/queue.go"]) is True
+
+
 def test_affects_caches_go_list_per_repo_and_package(
     go_project: Path, monkeypatch: pytest.MonkeyPatch
 ):
