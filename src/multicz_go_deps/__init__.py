@@ -50,26 +50,37 @@ class GoDepsPlugin(BasePlugin):
         # this plugin instance - ``affects`` is called once per
         # component by ``changed`` and once per (component, commit) by
         # the planner, and the import graph doesn't change mid-run.
-        self._dep_dirs_cache: dict[tuple[Path, str], frozenset[Path]] = {}
+        self._dep_dirs_cache: dict[tuple[Path, tuple[str, ...]], frozenset[Path]] = {}
 
-    def _packages(self, ctx: OwnershipContext) -> dict[str, str]:
-        """``{component: go-package-import-path}`` from
+    def _packages(self, ctx: OwnershipContext) -> dict[str, tuple[str, ...]]:
+        """``{component: (go-package-import-path, ...)}`` from
         ``[plugins.go-deps.packages]``. A component missing from this
-        map has nothing for this plugin to say about it."""
-        return ctx.plugin_config.get("packages", {})
+        map has nothing for this plugin to say about it.
 
-    def _dep_dirs(self, ctx: OwnershipContext, package: str) -> frozenset[Path]:
-        """Resolved, absolute directories of every package ``package``
-        imports (including itself) - empty on any failure (``go``
-        missing, package doesn't build, …) so a broken toolchain
-        degrades to "no opinion" rather than crashing the bump."""
-        key = (ctx.repo, package)
+        A component that ships more than one binary (e.g. a daemon
+        plus a sidecar it spawns) declares a list of import paths
+        instead of a single string - both forms are accepted."""
+        raw: dict[str, str | list[str]] = ctx.plugin_config.get("packages", {})
+        return {
+            name: (value,) if isinstance(value, str) else tuple(value)
+            for name, value in raw.items()
+        }
+
+    def _dep_dirs(
+        self, ctx: OwnershipContext, packages: tuple[str, ...]
+    ) -> frozenset[Path]:
+        """Resolved, absolute directories of every package in
+        ``packages`` (including themselves) - empty on any failure
+        (``go`` missing, a package doesn't build, …) so a broken
+        toolchain degrades to "no opinion" rather than crashing the
+        bump."""
+        key = (ctx.repo, packages)
         cached = self._dep_dirs_cache.get(key)
         if cached is not None:
             return cached
         try:
             result = subprocess.run(
-                ["go", "list", "-deps", "-f", "{{.Dir}}", package],
+                ["go", "list", "-deps", "-f", "{{.Dir}}", *packages],
                 cwd=ctx.repo,
                 capture_output=True,
                 text=True,
@@ -90,10 +101,10 @@ class GoDepsPlugin(BasePlugin):
         return dirs
 
     def affects(self, ctx: OwnershipContext, component: str, paths: list[str]) -> bool:
-        package = self._packages(ctx).get(component)
-        if package is None:
+        packages = self._packages(ctx).get(component)
+        if packages is None:
             return False
-        dep_dirs = self._dep_dirs(ctx, package)
+        dep_dirs = self._dep_dirs(ctx, packages)
         if not dep_dirs:
             return False
         return any((ctx.repo / path).resolve().parent in dep_dirs for path in paths)
