@@ -3,7 +3,7 @@
 
 [project]
 name = "multicz-go-deps-plugin"
-version = "0.0.0"
+version = "0.1.0"
 description = "multicz plugin that claims Go components via go list -deps instead of hand-maintained paths globs."
 readme = "README.md"
 requires-python = ">=3.12"
