@@ -118,13 +118,14 @@ versions or edit the changelog by hand.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, the
-commit-message convention, and the test/lint expectations. By
-participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+See [CONTRIBUTING.md](https://github.com/goabonga/multicz-go-deps-plugin/blob/main/CONTRIBUTING.md)
+for the workflow, the commit-message convention, and the test/lint
+expectations. By participating you agree to the
+[Code of Conduct](https://github.com/goabonga/multicz-go-deps-plugin/blob/main/CODE_OF_CONDUCT.md).
 
 Security issues: please follow the disclosure process in
-[SECURITY.md](SECURITY.md).
+[SECURITY.md](https://github.com/goabonga/multicz-go-deps-plugin/blob/main/SECURITY.md).
 
 ## License
 
-Distributed under the [MIT License](LICENSE).
+Distributed under the [MIT License](https://github.com/goabonga/multicz-go-deps-plugin/blob/main/LICENSE).
