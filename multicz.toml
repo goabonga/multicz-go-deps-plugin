@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Chris <goabonga@pm.me>
+
+# multicz.toml - versioning, changelog and tagging driven by Conventional
+# Commits. Docs: https://goabonga.github.io/multicz/
+
+[project]
+commit_convention = "conventional"
+tag_format = "v{version}"
+initial_version = "0.0.0"
+# Regenerate uv.lock after each bump so the lockfile tracks the new version;
+# without `allow` multicz skips the hook and the next `uv sync --frozen` in
+# CI fails on lockfile drift.
+post_bump_policy = "allow"
+state_file = ".multicz/state.json"
+
+[project.bump_rules]
+feat = "minor"
+fix = "patch"
+perf = "patch"
+revert = "patch"
+deprecate = "minor"
+remove = "minor"
+
+[[project.changelog_sections]]
+title = "Added"
+types = ["feat"]
+
+[[project.changelog_sections]]
+title = "Deprecated"
+types = ["deprecate"]
+
+[[project.changelog_sections]]
+title = "Removed"
+types = ["remove"]
+
+[[project.changelog_sections]]
+title = "Fixed"
+types = ["fix"]
+
+[[project.changelog_sections]]
+title = "Performance"
+types = ["perf"]
+
+[components.plugin]
+# Curated: only the source + packaging/deps file count toward a release.
+# Everything else (LICENSE, README, .github, docs, tests, scripts, tooling)
+# is intentionally untracked. A release-relevant change in an untracked file
+# is INVISIBLE - so a relicense must also touch pyproject.toml.
+paths = ["src/**", "pyproject.toml"]
+bump_files = [
+    { file = "pyproject.toml", key = "project.version" },
+    { file = "src/multicz_go_deps/__init__.py", key = "regex:__version__\\s*=\\s*[\"']([^\"']+)[\"']" },
+]
+changelog = "CHANGELOG.md"
+post_bump = ["uv lock"]
+
+[[components.plugin.artifacts]]
+type = "pypi"
+ref = "multicz-go-deps-plugin=={version}"
