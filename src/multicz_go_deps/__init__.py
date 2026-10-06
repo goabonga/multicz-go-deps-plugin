@@ -19,6 +19,11 @@ file's directory is actually a dependency of that component's binary.
 
 It never *replaces* ``paths``; it only widens what counts as "yes,
 this touches me" past what the globs already caught.
+
+It also implements :meth:`multicz.plugins.Plugin.enrich_changelog`: a
+release that exists only because an imported package changed gets a
+``Dependencies`` line naming that package, next to multicz's own
+``Track ...`` cascade lines.
 """
 
 from __future__ import annotations
@@ -27,10 +32,13 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from multicz.plugins import BasePlugin
+from multicz.config import ComponentMatcher
+from multicz.plugins import BasePlugin, ChangelogEntry
 
 if TYPE_CHECKING:
-    from multicz.plugins import OwnershipContext
+    from multicz.plugins import OwnershipContext, PluginContext
+
+DEFAULT_CHANGELOG_SECTION = "Dependencies"
 
 __version__ = "0.2.0"
 
@@ -52,7 +60,9 @@ class GoDepsPlugin(BasePlugin):
         # the planner, and the import graph doesn't change mid-run.
         self._dep_dirs_cache: dict[tuple[Path, tuple[str, ...]], frozenset[Path]] = {}
 
-    def _packages(self, ctx: OwnershipContext) -> dict[str, tuple[str, ...]]:
+    def _packages(
+        self, ctx: OwnershipContext | PluginContext
+    ) -> dict[str, tuple[str, ...]]:
         """``{component: (go-package-import-path, ...)}`` from
         ``[plugins.go-deps.packages]``. A component missing from this
         map has nothing for this plugin to say about it.
@@ -67,7 +77,7 @@ class GoDepsPlugin(BasePlugin):
         }
 
     def _dep_dirs(
-        self, ctx: OwnershipContext, packages: tuple[str, ...]
+        self, ctx: OwnershipContext | PluginContext, packages: tuple[str, ...]
     ) -> frozenset[Path]:
         """Resolved, absolute directories of every package in
         ``packages`` (including themselves) - empty on any failure
@@ -108,3 +118,51 @@ class GoDepsPlugin(BasePlugin):
         if not dep_dirs:
             return False
         return any((ctx.repo / path).resolve().parent in dep_dirs for path in paths)
+
+    def enrich_changelog(
+        self, ctx: PluginContext, component: str
+    ) -> list[ChangelogEntry]:
+        """Name the imported packages behind a bump the paths did not explain.
+
+        For each commit the plan attributes to ``component`` without any
+        of its files matching the component's ``paths``, list the changed
+        directories that are Go dependencies of its binaries, e.g.
+        ``Import `internal/transport` changed (`7cf9773`)``. The section
+        title comes from ``[plugins.go-deps] changelog_section`` (default
+        ``Dependencies``, merged with multicz's cascade lines); an empty
+        title disables the section.
+        """
+        section = ctx.plugin_config.get("changelog_section", DEFAULT_CHANGELOG_SECTION)
+        packages = self._packages(ctx).get(component)
+        bump = ctx.plan.bumps.get(component) if ctx.plan is not None else None
+        if not section or packages is None or bump is None:
+            return []
+        dep_dirs = self._dep_dirs(ctx, packages)
+        if not dep_dirs:
+            return []
+        matcher = ComponentMatcher(ctx.config.components)
+        lines: list[str] = []
+        for reason in bump.reasons:
+            files: tuple[str, ...] = getattr(reason, "files", ())
+            sha: str | None = getattr(reason, "sha", None)
+            if not files or not sha:
+                continue
+            # A commit the paths already own explains itself in the
+            # regular changelog sections.
+            if any(component in matcher.match_all(path) for path in files):
+                continue
+            imported = sorted(
+                {
+                    Path(path).parent.as_posix()
+                    for path in files
+                    if (ctx.repo / path).resolve().parent in dep_dirs
+                }
+            )
+            if imported:
+                names = ", ".join(f"`{name}`" for name in imported)
+                lines.append(f"Import {names} changed (`{sha[:7]}`)")
+        if not lines:
+            return []
+        return [
+            ChangelogEntry(section=section, component=component, lines=tuple(lines))
+        ]
