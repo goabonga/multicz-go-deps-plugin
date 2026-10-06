@@ -87,6 +87,13 @@ look from this plugin - plain `paths` matching is all it has.
   package imported by both `cmd/api` and `cmd/worker` claims both.
   This is unaffected by `overlap_policy`, which only governs plain
   `paths` matching.
+- **The changelog names the package behind an import-only bump.** When
+  a component is bumped by a commit none of whose files match its
+  `paths`, the plugin adds a line such as
+  ``Import `internal/transport` changed (`7cf9773`)`` to the
+  component's changelog, under `Dependencies` next to multicz's own
+  `Track ...` cascade lines. Set `changelog_section` in
+  `[plugins.go-deps]` to use another heading, or to `""` to turn it off.
 
 ## Requirements
 
