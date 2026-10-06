@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "git_head": "9facdd24fdf44e462d0b9a4a7a9612d5a60267c2",
-  "git_head_short": "9facdd2",
-  "timestamp": "2026-10-02T14:39:10Z",
+  "git_head": "8911de2f11209c0e95a2f387279a50fd941cad3b",
+  "git_head_short": "8911de2",
+  "timestamp": "2026-10-06T09:59:55Z",
   "components": {
     "plugin": {
-      "version": "0.2.0",
-      "tag": "v0.2.0",
+      "version": "0.3.0",
+      "tag": "v0.3.0",
       "tag_sha": null
     }
   }
