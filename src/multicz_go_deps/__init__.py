@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 DEFAULT_CHANGELOG_SECTION = "Dependencies"
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = ["GoDepsPlugin"]
 
