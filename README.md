@@ -79,9 +79,13 @@ look from this plugin - plain `paths` matching is all it has.
 - **One `go list` call per (repo, package) per run.** Resolved
   dependency directories are cached on the plugin instance for the
   lifetime of the process.
-- **A broken toolchain degrades to "no opinion".** If `go` isn't on
-  `PATH`, or the package doesn't build, the plugin returns `False` -
-  the bump still proceeds on whatever `paths` alone could determine.
+- **A broken toolchain degrades to "no opinion", and says so.** If `go`
+  isn't on `PATH`, or a package doesn't load (it doesn't build, a
+  `go.sum` checksum is wrong), `affects` returns `False` - the bump
+  still proceeds on whatever `paths` alone could determine. `multicz
+  validate` reports it as a `plugin:go-deps` warning naming the
+  component and `go`'s own error, so `multicz validate --strict` in CI
+  fails instead of releasing without the component.
 - **A shared dependency fans out to every importer.** `affects` is
   evaluated independently per component by multicz - a change to a
   package imported by both `cmd/api` and `cmd/worker` claims both.
@@ -99,7 +103,7 @@ look from this plugin - plain `paths` matching is all it has.
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) for environment management
-- A `go` toolchain on `PATH` at the time `multicz changed`/`plan`/`bump`
+- A `go` toolchain on `PATH` at the time `multicz validate`/`changed`/`plan`/`bump`
   runs (not required to install or import this package)
 
 ## Getting started (development)

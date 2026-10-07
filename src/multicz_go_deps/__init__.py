@@ -24,6 +24,12 @@ It also implements :meth:`multicz.plugins.Plugin.enrich_changelog`: a
 release that exists only because an imported package changed gets a
 ``Dependencies`` line naming that package, next to multicz's own
 ``Track ...`` cascade lines.
+
+``affects`` answers "no opinion" when ``go list`` fails, so a broken
+module (a corrupted ``go.sum``, a package that no longer builds) would
+silently stop claiming changes. :meth:`multicz.plugins.Plugin.validate`
+reports that failure in ``multicz validate`` as a warning, which
+``multicz validate --strict`` turns into a failure.
 """
 
 from __future__ import annotations
@@ -33,7 +39,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from multicz.config import ComponentMatcher
-from multicz.plugins import BasePlugin, ChangelogEntry
+from multicz.plugins import BasePlugin, ChangelogEntry, Severity, Violation
 
 if TYPE_CHECKING:
     from multicz.plugins import OwnershipContext, PluginContext
@@ -58,7 +64,9 @@ class GoDepsPlugin(BasePlugin):
         # this plugin instance - ``affects`` is called once per
         # component by ``changed`` and once per (component, commit) by
         # the planner, and the import graph doesn't change mid-run.
-        self._dep_dirs_cache: dict[tuple[Path, tuple[str, ...]], frozenset[Path]] = {}
+        self._go_list_cache: dict[
+            tuple[Path, tuple[str, ...]], tuple[frozenset[Path], str | None]
+        ] = {}
 
     def _packages(
         self, ctx: OwnershipContext | PluginContext
@@ -76,16 +84,16 @@ class GoDepsPlugin(BasePlugin):
             for name, value in raw.items()
         }
 
-    def _dep_dirs(
+    def _go_list(
         self, ctx: OwnershipContext | PluginContext, packages: tuple[str, ...]
-    ) -> frozenset[Path]:
+    ) -> tuple[frozenset[Path], str | None]:
         """Resolved, absolute directories of every package in
-        ``packages`` (including themselves) - empty on any failure
-        (``go`` missing, a package doesn't build, …) so a broken
-        toolchain degrades to "no opinion" rather than crashing the
-        bump."""
+        ``packages`` (including themselves), and why ``go list`` failed
+        when it did - in which case the directories are empty, so a
+        broken toolchain degrades to "no opinion" rather than crashing
+        the bump."""
         key = (ctx.repo, packages)
-        cached = self._dep_dirs_cache.get(key)
+        cached = self._go_list_cache.get(key)
         if cached is not None:
             return cached
         try:
@@ -95,20 +103,59 @@ class GoDepsPlugin(BasePlugin):
                 capture_output=True,
                 text=True,
             )
-        except OSError:
-            dirs: frozenset[Path] = frozenset()
+        except OSError as exc:
+            outcome: tuple[frozenset[Path], str | None] = (frozenset(), str(exc))
         else:
-            dirs = (
-                frozenset(
-                    Path(line).resolve()
-                    for line in result.stdout.splitlines()
-                    if line.strip()
+            if result.returncode == 0:
+                outcome = (
+                    frozenset(
+                        Path(line).resolve()
+                        for line in result.stdout.splitlines()
+                        if line.strip()
+                    ),
+                    None,
                 )
-                if result.returncode == 0
-                else frozenset()
-            )
-        self._dep_dirs_cache[key] = dirs
-        return dirs
+            else:
+                # Progress lines ("go: downloading ...") say nothing about
+                # the failure.
+                lines = [
+                    line.strip()
+                    for line in result.stderr.splitlines()
+                    if line.strip() and not line.startswith("go: downloading ")
+                ]
+                reason = "; ".join(lines) or f"exit status {result.returncode}"
+                outcome = (frozenset(), reason)
+        self._go_list_cache[key] = outcome
+        return outcome
+
+    def _dep_dirs(
+        self, ctx: OwnershipContext | PluginContext, packages: tuple[str, ...]
+    ) -> frozenset[Path]:
+        return self._go_list(ctx, packages)[0]
+
+    def _failures(
+        self, ctx: OwnershipContext | PluginContext, severity: Severity
+    ) -> list[Violation]:
+        """One violation per component whose packages ``go list`` cannot load."""
+        violations: list[Violation] = []
+        for component, packages in sorted(self._packages(ctx).items()):
+            _, error = self._go_list(ctx, packages)
+            if error is not None:
+                violations.append(
+                    Violation(
+                        severity,
+                        f"go list -deps {' '.join(packages)} failed, so changes to "
+                        f"its imports cannot be attributed: {error}",
+                        component=component,
+                        plugin=self.name,
+                    )
+                )
+        return violations
+
+    def validate(self, ctx: OwnershipContext) -> list[Violation]:
+        """Report every component whose import graph cannot be loaded,
+        as a warning (failing ``multicz validate --strict``)."""
+        return self._failures(ctx, Severity.warning)
 
     def affects(self, ctx: OwnershipContext, component: str, paths: list[str]) -> bool:
         packages = self._packages(ctx).get(component)

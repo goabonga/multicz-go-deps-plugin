@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Software Development :: Version Control",
 ]
 dependencies = [
-    "multicz>=1.7,<2",
+    "multicz>=1.8,<2",
 ]
 
 [project.entry-points."multicz.plugins"]
