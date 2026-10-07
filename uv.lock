@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -365,7 +365,7 @@ wheels = [
 
 [[package]]
 name = "multicz"
-version = "1.7.0"
+version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
@@ -375,9 +375,9 @@ dependencies = [
     { name = "tomlkit" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/09/59/6f824f46382f46cbddd1377bec676be75f90f9960455ac0b27cf7d2c62d9/multicz-1.7.0.tar.gz", hash = "sha256:ef77d30dcc28492479782672b2d86bc9c5583b8a15f5e1b81b077731e33ada53", size = 95087, upload-time = "2026-10-02T13:19:04.104Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fa/e1/236116cdae16eedebc77f7630376e033eebf62b1374b5a12168a1ae59c91/multicz-1.8.0.tar.gz", hash = "sha256:eac7e1d58101a5e0ce8e5bbd969c5b0f7a1e9178d6373dfa870a4cdda2a31662", size = 96071, upload-time = "2026-10-07T10:03:34.044Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/95/2c/6ff6cd9fd78cd54d4a085d7bc9de9e5ef7c752edf1106a63ae1b8477a327/multicz-1.7.0-py3-none-any.whl", hash = "sha256:e1764053108607f4700c8296ee8a603ef1937108bf667d51cdad6e88ec09cd2a", size = 142849, upload-time = "2026-10-02T13:19:02.617Z" },
+    { url = "https://files.pythonhosted.org/packages/34/89/652e5875a65d929712541e01008fb8e545621743e92905c74ccc8d0f4a79/multicz-1.8.0-py3-none-any.whl", hash = "sha256:dd7dc091ef59e5762aea17a32b06ba4f9fed351ecf00858ef826d05911a73642", size = 144839, upload-time = "2026-10-07T10:03:32.789Z" },
 ]
 
 [[package]]
@@ -398,7 +398,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "multicz", specifier = ">=1.7,<2" }]
+requires-dist = [{ name = "multicz", specifier = ">=1.8,<2" }]
 
 [package.metadata.requires-dev]
 dev = [
