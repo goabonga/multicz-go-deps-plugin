@@ -86,6 +86,14 @@ look from this plugin - plain `paths` matching is all it has.
   validate` reports it as a `plugin:go-deps` warning naming the
   component and `go`'s own error, so `multicz validate --strict` in CI
   fails instead of releasing without the component.
+- **`strict = true` makes that failure an error.** With it in
+  `[plugins.go-deps]`, plain `multicz validate` fails too, and
+  `multicz bump` aborts before writing anything:
+
+  ```toml
+  [plugins.go-deps]
+  strict = true
+  ```
 - **A shared dependency fans out to every importer.** `affects` is
   evaluated independently per component by multicz - a change to a
   package imported by both `cmd/api` and `cmd/worker` claims both.

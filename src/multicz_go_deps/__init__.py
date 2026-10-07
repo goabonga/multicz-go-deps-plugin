@@ -28,8 +28,8 @@ release that exists only because an imported package changed gets a
 ``affects`` answers "no opinion" when ``go list`` fails, so a broken
 module (a corrupted ``go.sum``, a package that no longer builds) would
 silently stop claiming changes. :meth:`multicz.plugins.Plugin.validate`
-reports that failure in ``multicz validate`` as a warning, which
-``multicz validate --strict`` turns into a failure.
+reports that failure in ``multicz validate`` - a warning, or an error
+with ``strict = true``, which also makes ``post_plan`` abort the bump.
 """
 
 from __future__ import annotations
@@ -153,9 +153,26 @@ class GoDepsPlugin(BasePlugin):
         return violations
 
     def validate(self, ctx: OwnershipContext) -> list[Violation]:
-        """Report every component whose import graph cannot be loaded,
-        as a warning (failing ``multicz validate --strict``)."""
-        return self._failures(ctx, Severity.warning)
+        """Report every component whose import graph cannot be loaded:
+        a warning (failing ``multicz validate --strict``), or an error
+        when ``[plugins.go-deps] strict = true``."""
+        strict = ctx.plugin_config.get("strict", False)
+        if not isinstance(strict, bool):
+            return [
+                Violation(
+                    Severity.error,
+                    f"[plugins.go-deps] strict must be true or false, not {strict!r}",
+                    plugin=self.name,
+                )
+            ]
+        return self._failures(ctx, Severity.error if strict else Severity.warning)
+
+    def post_plan(self, ctx: PluginContext) -> list[Violation]:
+        """With ``strict = true``, abort the bump when an import graph
+        cannot be loaded: the plan may be missing a component."""
+        if ctx.plugin_config.get("strict") is not True:
+            return []
+        return self._failures(ctx, Severity.error)
 
     def affects(self, ctx: OwnershipContext, component: str, paths: list[str]) -> bool:
         packages = self._packages(ctx).get(component)
