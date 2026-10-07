@@ -27,13 +27,37 @@ def test_validate_is_silent_when_every_graph_loads(go_project: Path):
     assert GoDepsPlugin().validate(make_ctx(go_project, PACKAGES)) == []
 
 
-def test_a_graph_that_cannot_load_is_a_warning(broken_api: Path):
+def test_a_graph_that_cannot_load_is_a_warning_by_default(broken_api: Path):
     [violation] = GoDepsPlugin().validate(make_ctx(broken_api, PACKAGES))
     assert violation.severity == Severity.warning
     assert (violation.component, violation.plugin) == ("api", "go-deps")
     assert violation.message.startswith("go list -deps ./cmd/api failed")
     assert "internal/missing" in violation.message
     assert "go: downloading" not in violation.message
+
+
+def test_strict_makes_it_an_error_and_aborts_the_bump(broken_api: Path):
+    ctx = make_ctx(broken_api, PACKAGES)
+    ctx.plugin_config["strict"] = True
+    plugin = GoDepsPlugin()
+    assert [v.severity for v in plugin.validate(ctx)] == [Severity.error]
+    assert [(v.severity, v.component) for v in plugin.post_plan(ctx)] == [
+        (Severity.error, "api")
+    ]
+
+
+def test_post_plan_does_not_gate_without_strict(broken_api: Path):
+    assert GoDepsPlugin().post_plan(make_ctx(broken_api, PACKAGES)) == []
+
+
+def test_strict_must_be_a_boolean(go_project: Path):
+    ctx = make_ctx(go_project, PACKAGES)
+    ctx.plugin_config["strict"] = "yes"
+    [violation] = GoDepsPlugin().validate(ctx)
+    assert (
+        violation.severity == Severity.error
+        and "strict must be true or false" in violation.message
+    )
 
 
 def test_a_missing_go_toolchain_is_reported(
