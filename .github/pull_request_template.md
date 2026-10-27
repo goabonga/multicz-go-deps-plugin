@@ -30,8 +30,8 @@
 - [ ] Branch is up to date with `main`
 - [ ] `uv sync` succeeds
 - [ ] `uv run ruff check src tests` and `uv run ruff format --check src tests` are clean
-- [ ] `uv run mypy src` is clean
+- [ ] `uv run mypy src` and `uv run pyright` are clean
 - [ ] `uv run pytest` passes
 - [ ] `uv tool run multicz validate --strict` passes
-- [ ] SPDX license headers are present (`python scripts/add_license_header.py --path . --types py,toml --check`)
+- [ ] SPDX license headers are present (`python scripts/add_license_header.py --path . --types py,yml,toml --check`)
 - [ ] No `Co-Authored-By` trailer in commit messages
