@@ -45,12 +45,12 @@ packages = ["src/multicz_go_deps"]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.13",
-    "mypy>=1.8",
-    "pytest>=8",
-    "pytest-cov>=5",
-    "pre-commit>=4",
+    "mypy>=1.18",
+    "pre-commit>=4.0",
     "pyright>=1.1.414",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.13",
 ]
 
 [tool.pytest.ini_options]
