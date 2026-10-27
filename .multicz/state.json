@@ -4,7 +4,7 @@
   "git_head_short": "ef11a9b",
   "timestamp": "2026-10-07T10:17:14Z",
   "components": {
-    "plugin": {
+    "multicz-go-deps-plugin": {
       "version": "0.4.0",
       "tag": "v0.4.0",
       "tag_sha": null

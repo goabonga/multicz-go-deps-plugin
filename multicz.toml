@@ -1,16 +1,21 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Chris <goabonga@pm.me>
 
-# multicz.toml - versioning, changelog and tagging driven by Conventional
-# Commits. Docs: https://goabonga.github.io/multicz/
+# multicz.toml - versioning, changelog and tagging for the single
+# multicz-go-deps-plugin component. Driven by Conventional Commits.
+# Docs: https://goabonga.github.io/multicz/
+#
+# Tags keep the "v{version}" format of the existing release history
+# (v0.1.0, v0.2.0, ...): switching format would make multicz compute the next
+# bump from the wrong tag.
 
 [project]
 commit_convention = "conventional"
 tag_format = "v{version}"
 initial_version = "0.0.0"
-# Regenerate uv.lock after each bump so the lockfile tracks the new version;
-# without `allow` multicz skips the hook and the next `uv sync --frozen` in
-# CI fails on lockfile drift.
+# Regenerate uv.lock after each bump so the lockfile tracks the new
+# version. Without `allow`, multicz silently skips the hook and the
+# next `uv sync --frozen` in CI fails on lockfile drift.
 post_bump_policy = "allow"
 state_file = ".multicz/state.json"
 
@@ -19,20 +24,13 @@ feat = "minor"
 fix = "patch"
 perf = "patch"
 revert = "patch"
-deprecate = "minor"
-remove = "minor"
 
+# CHANGELOG layout aligned on Keep-a-Changelog. multicz routes each
+# commit to the section whose `types` list contains its type. Order
+# matters: sections render in declaration order.
 [[project.changelog_sections]]
 title = "Added"
 types = ["feat"]
-
-[[project.changelog_sections]]
-title = "Deprecated"
-types = ["deprecate"]
-
-[[project.changelog_sections]]
-title = "Removed"
-types = ["remove"]
 
 [[project.changelog_sections]]
 title = "Fixed"
@@ -42,12 +40,18 @@ types = ["fix"]
 title = "Performance"
 types = ["perf"]
 
-[components.plugin]
-# Curated: only the source + packaging/deps file count toward a release.
-# Everything else (LICENSE, README, .github, docs, tests, scripts, tooling)
-# is intentionally untracked. A release-relevant change in an untracked file
-# is INVISIBLE - so a relicense must also touch pyproject.toml.
-paths = ["src/**", "pyproject.toml"]
+[[project.changelog_sections]]
+title = "Reverted"
+types = ["revert"]
+
+[components.multicz-go-deps-plugin]
+# A commit is attributed to this component (for the bump and the
+# CHANGELOG) only if it touches one of these paths - the source, the
+# project/metadata file and its lock (a runtime dependency bump only
+# touches uv.lock). Everything else (LICENSE, README, .github, tests,
+# scripts, tooling configs) is intentionally NOT tracked, so infra or
+# docs-only work never counts as a release.
+paths = ["src/**", "pyproject.toml", "uv.lock"]
 bump_files = [
     { file = "pyproject.toml", key = "project.version" },
     { file = "src/multicz_go_deps/__init__.py", key = "regex:__version__\\s*=\\s*[\"']([^\"']+)[\"']" },
@@ -55,6 +59,6 @@ bump_files = [
 changelog = "CHANGELOG.md"
 post_bump = ["uv lock"]
 
-[[components.plugin.artifacts]]
+[[components.multicz-go-deps-plugin.artifacts]]
 type = "pypi"
 ref = "multicz-go-deps-plugin=={version}"

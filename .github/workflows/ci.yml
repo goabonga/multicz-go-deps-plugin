@@ -301,7 +301,7 @@ jobs:
           PLAN=$(uv tool run multicz bump --commit --tag --push --sign --output json)
           BUMPED=$(echo "$PLAN" | jq -r '.bumps | keys | join(" ")')
           if [ -z "$BUMPED" ]; then echo "no_bumps=true" >> "$GITHUB_OUTPUT";
-          else echo "no_bumps=false" >> "$GITHUB_OUTPUT"; echo "version=$(uv tool run multicz get plugin)" >> "$GITHUB_OUTPUT"; fi
+          else echo "no_bumps=false" >> "$GITHUB_OUTPUT"; echo "version=$(uv tool run multicz get multicz-go-deps-plugin)" >> "$GITHUB_OUTPUT"; fi
       - name: Bump, commit, tag, push
         id: bump_unsigned
         if: steps.gpg.outputs.available != 'true'
@@ -310,7 +310,7 @@ jobs:
           PLAN=$(uv tool run multicz bump --commit --tag --push --output json)
           BUMPED=$(echo "$PLAN" | jq -r '.bumps | keys | join(" ")')
           if [ -z "$BUMPED" ]; then echo "no_bumps=true" >> "$GITHUB_OUTPUT";
-          else echo "no_bumps=false" >> "$GITHUB_OUTPUT"; echo "version=$(uv tool run multicz get plugin)" >> "$GITHUB_OUTPUT"; fi
+          else echo "no_bumps=false" >> "$GITHUB_OUTPUT"; echo "version=$(uv tool run multicz get multicz-go-deps-plugin)" >> "$GITHUB_OUTPUT"; fi
       - name: Resolve release outputs
         id: bump
         run: |
