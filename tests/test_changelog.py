@@ -119,6 +119,12 @@ def test_components_without_an_import_bump_get_nothing(
     assert GoDepsPlugin().enrich_changelog(ctx, component) == []
 
 
+def test_a_commit_touching_no_imported_package_adds_nothing(go_project: Path):
+    ctx = _ctx(go_project, {"api": [_reason("e" * 40, "internal/queue/queue.go")]})
+
+    assert GoDepsPlugin().enrich_changelog(ctx, "api") == []
+
+
 def test_reasons_without_commit_files_are_skipped(go_project: Path):
     """Cascade reasons (``depends_on``, mirrors) carry no commit files."""
     cascade = SimpleNamespace(upstream="worker", upstream_kind="patch")
