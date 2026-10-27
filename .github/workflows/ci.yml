@@ -136,8 +136,11 @@ jobs:
           enable-cache: true
           cache-suffix: ${{ github.job }}
           python-version: "3.12"
-      - run: uv sync --frozen
-      - run: uvx pip-audit --skip-editable --path .venv
+      - name: Export locked requirements
+        # `pip-audit --path .venv` finds no package in a uv venv and
+        # audits nothing, so audit the pinned lock export instead.
+        run: uv export --frozen --all-groups --no-emit-project --no-hashes --output-file requirements.txt
+      - run: uvx pip-audit -r requirements.txt --no-deps --disable-pip
 
   osv-scanner:
     name: osv-scanner
