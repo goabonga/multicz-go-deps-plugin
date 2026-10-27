@@ -1,16 +1,20 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Chris <goabonga@pm.me>
 
-# Local pre-commit configuration mirroring the CI quality gates.
-# Install once per clone: `uv run pre-commit install` (installs the
-# pre-commit AND commit-msg hooks). Run on the whole tree:
-# `uv run pre-commit run --all-files`.
+# Local pre-commit configuration. Mirrors the CI quality gates so the
+# loop "lint / format / type-check / SPDX headers / commit-msg" runs
+# before the commit lands instead of after the push.
+#
+# Install once per clone: `uv run pre-commit install` - this installs
+# the pre-commit AND commit-msg hooks (see `default_install_hook_types`
+# below). Run manually on the full tree: `uv run pre-commit run --all-files`.
 
 default_install_hook_types: [pre-commit, commit-msg]
 default_language_version:
-  python: python3
+  python: python3.12
 
 repos:
+  # Generic hygiene
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -22,6 +26,8 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=500]
 
+  # Lint + format + type-check via the project venv (uv run) so the
+  # tools match exactly what CI installs from uv.lock.
   - repo: local
     hooks:
       - id: ruff-check
@@ -37,7 +43,7 @@ repos:
         types: [python]
         require_serial: true
       - id: mypy
-        name: mypy
+        name: mypy (strict)
         entry: uv run mypy
         language: system
         files: ^src/.*\.py$
@@ -52,6 +58,8 @@ repos:
         pass_filenames: false
         require_serial: true
 
+  # SPDX license headers. One hook per target path because the helper
+  # script takes a single --path.
   - repo: local
     hooks:
       - id: spdx-headers-src
@@ -66,18 +74,18 @@ repos:
         language: system
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: spdx-headers-scripts
-        name: SPDX headers (scripts/)
-        entry: python scripts/add_license_header.py --path scripts --types py --check
-        language: system
-        pass_filenames: false
-        files: ^scripts/.*\.py$
       - id: spdx-headers-workflows
         name: SPDX headers (.github/)
         entry: python scripts/add_license_header.py --path .github --types yml --check
         language: system
         pass_filenames: false
         files: ^\.github/.*\.ya?ml$
+      - id: spdx-headers-scripts
+        name: SPDX headers (scripts/)
+        entry: python scripts/add_license_header.py --path scripts --types py --check
+        language: system
+        pass_filenames: false
+        files: ^scripts/.*\.py$
       - id: spdx-headers-root-toml
         name: SPDX headers (root *.toml)
         entry: python scripts/add_license_header.py --path . --types toml --check
@@ -85,6 +93,11 @@ repos:
         pass_filenames: false
         files: ^[^/]+\.toml$
 
+  # Conventional Commits validation on the commit message itself.
+  # `--strict` is intentionally NOT enabled: it would reject the
+  # `fixup!` / `squash!` prefixes that `git commit --fixup=<sha>`
+  # produces, and the autosquash workflow is the project's preferred
+  # way of editing existing commits.
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.6.0
     hooks:
@@ -101,8 +114,6 @@ repos:
           - ci
           - build
           - style
-          - deprecate
-          - remove
   # The rule of scripts/sign_commit.py, applied before the signed merge
   # refuses the commit: at most 72 characters, no trailing period, a
   # lowercase summary.
