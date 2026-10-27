@@ -13,8 +13,9 @@ on:
 
 # The quality jobs skip the `chore(release)` commit multicz pushes to main:
 # the run that cut the release already validated the code it carries, and
-# `release` and `pypi-publish` need them, so they are skipped with them.
+# `release` and its publish jobs need them, so they are skipped with them.
 
+# `concurrency` cancels superseded PR runs but never main-branch releases.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -24,10 +25,13 @@ permissions:
 
 defaults:
   run:
-    # An explicit shell enables pipefail.
+    # An explicit shell enables pipefail, so `| tee` keeps the tool's status.
     shell: bash
 
 jobs:
+  # Lint with ruff: `ruff check` (E, F, I, B, UP, SIM) plus a separate
+  # `ruff format --check` so whitespace/quote-style violations are caught
+  # for contributors who skipped the pre-commit hooks.
   lint:
     name: lint
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
@@ -38,20 +42,21 @@ jobs:
         with:
           enable-cache: true
           cache-suffix: ${{ github.job }}
-          python-version: "3.12"
-      - run: uv sync --frozen --only-group dev
+      - name: Sync
+        run: uv sync --frozen
       - name: Lint
-        run: uv run --no-sync ruff check --output-format=json --output-file=ruff.json src tests
+        run: uv run ruff check --output-format=json --output-file=ruff.json src tests
       - name: Summarize ruff check
         if: ${{ !cancelled() }}
         run: python3 scripts/format_summary.py ruff-check ruff.json
       - name: Format check
         if: ${{ !cancelled() }}
-        run: uv run --no-sync ruff format --check src tests 2>&1 | tee ruff-format.txt
+        run: uv run ruff format --check src tests 2>&1 | tee ruff-format.txt
       - name: Summarize ruff format
         if: ${{ !cancelled() }}
         run: python3 scripts/format_summary.py ruff-format ruff-format.txt
 
+  # Strict static type checking with mypy on the public src/.
   type-check:
     name: type-check
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
@@ -62,16 +67,19 @@ jobs:
         with:
           enable-cache: true
           cache-suffix: ${{ github.job }}
-          python-version: "3.12"
-      - run: uv sync --frozen
+      - name: Sync
+        run: uv sync --frozen
       - name: Type-check
-        run: uv run --no-sync mypy src 2>&1 | tee mypy.txt
+        run: uv run mypy src 2>&1 | tee mypy.txt
       - name: Summarize mypy
         if: ${{ !cancelled() }}
         env:
           JOB_STATUS: ${{ job.status }}
         run: python3 scripts/format_summary.py text mypy mypy.txt
 
+  # Second static type check, with pyright, on the public src/. mypy and
+  # pyright disagree on inference and narrowing, so each catches what the
+  # other lets through.
   pyright:
     name: pyright
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
@@ -82,8 +90,8 @@ jobs:
         with:
           enable-cache: true
           cache-suffix: ${{ github.job }}
-          python-version: "3.12"
-      - run: uv sync --frozen
+      - name: Sync
+        run: uv sync --frozen
       - name: Type-check
         run: uv run --no-sync pyright --outputjson > pyright.json
       - name: Summarize pyright
@@ -107,48 +115,74 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: python3 scripts/check_commit_subject.py --range "$BASE_SHA..$HEAD_SHA"
 
+  # Verify the two-line SPDX header on every Python source and config.
   license-headers:
     name: license-headers
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          cache-suffix: ${{ github.job }}
-          python-version: "3.12"
       - name: Check SPDX headers
         run: |
           {
-            uv run --no-project python scripts/add_license_header.py --path src --types py --check
-            uv run --no-project python scripts/add_license_header.py --path tests --types py --check
-            uv run --no-project python scripts/add_license_header.py --path scripts --types py --check
-            uv run --no-project python scripts/add_license_header.py --path .github --types yml --check
-            uv run --no-project python scripts/add_license_header.py --path . --types toml --check
+            python3 scripts/add_license_header.py --path src --types py --check
+            python3 scripts/add_license_header.py --path tests --types py --check
+            python3 scripts/add_license_header.py --path scripts --types py --check
+            python3 scripts/add_license_header.py --path .github --types yml --check
+            python3 scripts/add_license_header.py --path . --types toml --check
           } 2>&1 | tee headers.txt
       - name: Summarize license headers
         if: ${{ !cancelled() }}
         run: python3 scripts/format_summary.py headers headers.txt
 
-  test:
-    name: test
+  # `multicz validate` reads multicz.toml and checks it against the repository
+  # and the installed plugins, this project's own among them.
+  validate:
+    name: validate
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-suffix: ${{ github.job }}
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.22"
+      - name: Sync
+        run: uv sync --frozen
+      - name: Validate the multicz configuration
+        run: uv run multicz validate --strict
+
+  # Run the test suite with coverage and report to Codecov.
+  test:
+    name: test (${{ matrix.python }})
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
           go-version: "1.22"
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          cache-suffix: ${{ github.job }}
-          python-version: "3.12"
-      - run: uv sync --frozen
+          cache-suffix: ${{ github.job }}-${{ matrix.python }}
+          python-version: ${{ matrix.python }}
+      - name: Sync
+        run: uv sync --frozen
       - name: Run tests with coverage
         run: |
-          uv run --no-sync pytest \
+          uv run pytest \
             --cov=multicz_go_deps \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
@@ -174,6 +208,7 @@ jobs:
           fail_ci_if_error: false
           disable_search: true
 
+  # Static security analysis of the source (Bandit).
   bandit:
     name: bandit
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
@@ -184,13 +219,13 @@ jobs:
         with:
           enable-cache: true
           cache-suffix: ${{ github.job }}
-          python-version: "3.12"
       - name: Run Bandit
         run: uvx --from 'bandit[toml]' bandit -c pyproject.toml --recursive src --format json --output bandit.json
       - name: Summarize bandit
         if: ${{ !cancelled() }}
         run: python3 scripts/format_summary.py bandit bandit.json
 
+  # Audit the locked dependency graph against the PyPI advisory DB.
   pip-audit:
     name: pip-audit
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
@@ -201,7 +236,6 @@ jobs:
         with:
           enable-cache: true
           cache-suffix: ${{ github.job }}
-          python-version: "3.12"
       - name: Export locked requirements
         # `pip-audit --path .venv` finds no package in a uv venv and
         # audits nothing, so audit the pinned lock export instead.
@@ -212,6 +246,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: python3 scripts/format_summary.py pip-audit audit.json
 
+  # Multi-source vulnerability scan via OSV-Scanner (reads uv.lock).
   osv-scanner:
     name: osv-scanner
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
@@ -234,9 +269,21 @@ jobs:
           JOB_STATUS: ${{ job.status }}
         run: python3 scripts/format_summary.py text osv-scanner osv-scanner.txt
 
+  # Release on main only: bump the version, write the changelog, create
+  # the release commit + tag and push them back. Gated on every quality
+  # job; `needs` blocks on any upstream failure.
   release:
     name: release
-    needs: [lint, type-check, pyright, license-headers, test, bandit, pip-audit, osv-scanner]
+    needs:
+      - lint
+      - type-check
+      - pyright
+      - license-headers
+      - validate
+      - test
+      - bandit
+      - pip-audit
+      - osv-scanner
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     permissions:
@@ -244,6 +291,8 @@ jobs:
     outputs:
       no_bumps: ${{ steps.bump.outputs.no_bumps }}
       version: ${{ steps.bump.outputs.version }}
+      # True only when the package itself moved: the gate of `pypi-publish`.
+      package_bumped: ${{ steps.bump.outputs.package_bumped }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -252,8 +301,6 @@ jobs:
           # release commit and its tag; the workflow token cannot bypass it.
           token: ${{ secrets.AUTO_MERGE_PAT || github.token }}
           persist-credentials: true
-      # NOTE: no python-version pin here - multicz needs Python >=3.12 and
-      # `uv tool install multicz` fails under 3.11.
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -261,8 +308,9 @@ jobs:
       - name: Install multicz
         run: uv tool install multicz
       - name: Configure git author
-        # Passed through env, never interpolated into the script: the
-        # author name is attacker-controlled input.
+        # Attribute the release commit to whoever pushed the head commit
+        # that triggered CI, falling back to the github-actions[bot]
+        # noreply identity when the payload carries no author.
         env:
           NAME: ${{ github.event.head_commit.author.name }}
           EMAIL: ${{ github.event.head_commit.author.email }}
@@ -270,6 +318,8 @@ jobs:
           git config user.name  "${NAME:-github-actions[bot]}"
           git config user.email "${EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}"
       - name: Detect GPG availability
+        # Secrets can't be referenced from `if:` directly, so promote
+        # their presence to a step output.
         id: gpg
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -287,9 +337,14 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          # Pre-cache the passphrase in gpg-agent via a dummy sign so
+          # subsequent `git commit -S` / `git tag -s` don't prompt.
           echo test | gpg --batch --yes --passphrase "$GPG_PASSPHRASE" \
             --pinentry-mode loopback --sign > /dev/null
-          KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/{print $5; exit}')
+          # Derive the signing key id from the imported key; no extra
+          # secret needed.
+          KEY_ID=$(gpg --list-secret-keys --with-colons \
+            | awk -F: '/^sec/{print $5; exit}')
           git config user.signingkey "$KEY_ID"
       - name: Plan release
         run: uv tool run multicz plan --summary "$GITHUB_STEP_SUMMARY"
@@ -300,8 +355,14 @@ jobs:
           set -euo pipefail
           PLAN=$(uv tool run multicz bump --commit --tag --push --sign --output json)
           BUMPED=$(echo "$PLAN" | jq -r '.bumps | keys | join(" ")')
-          if [ -z "$BUMPED" ]; then echo "no_bumps=true" >> "$GITHUB_OUTPUT";
-          else echo "no_bumps=false" >> "$GITHUB_OUTPUT"; echo "version=$(uv tool run multicz get multicz-go-deps-plugin)" >> "$GITHUB_OUTPUT"; fi
+          PACKAGE_BUMPED=$(echo "$PLAN" | jq -r '.bumps // {} | has("multicz-go-deps-plugin")')
+          echo "package_bumped=$PACKAGE_BUMPED" >> "$GITHUB_OUTPUT"
+          if [ -z "$BUMPED" ]; then
+            echo "no_bumps=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no_bumps=false" >> "$GITHUB_OUTPUT"
+            echo "version=$(uv tool run multicz get multicz-go-deps-plugin)" >> "$GITHUB_OUTPUT"
+          fi
       - name: Bump, commit, tag, push
         id: bump_unsigned
         if: steps.gpg.outputs.available != 'true'
@@ -309,32 +370,44 @@ jobs:
           set -euo pipefail
           PLAN=$(uv tool run multicz bump --commit --tag --push --output json)
           BUMPED=$(echo "$PLAN" | jq -r '.bumps | keys | join(" ")')
-          if [ -z "$BUMPED" ]; then echo "no_bumps=true" >> "$GITHUB_OUTPUT";
-          else echo "no_bumps=false" >> "$GITHUB_OUTPUT"; echo "version=$(uv tool run multicz get multicz-go-deps-plugin)" >> "$GITHUB_OUTPUT"; fi
+          PACKAGE_BUMPED=$(echo "$PLAN" | jq -r '.bumps // {} | has("multicz-go-deps-plugin")')
+          echo "package_bumped=$PACKAGE_BUMPED" >> "$GITHUB_OUTPUT"
+          if [ -z "$BUMPED" ]; then
+            echo "no_bumps=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no_bumps=false" >> "$GITHUB_OUTPUT"
+            echo "version=$(uv tool run multicz get multicz-go-deps-plugin)" >> "$GITHUB_OUTPUT"
+          fi
       - name: Resolve release outputs
         id: bump
         run: |
           if [ "${{ steps.gpg.outputs.available }}" = "true" ]; then
             echo 'no_bumps=${{ steps.bump_signed.outputs.no_bumps }}' >> "$GITHUB_OUTPUT"
             echo 'version=${{ steps.bump_signed.outputs.version }}' >> "$GITHUB_OUTPUT"
+            echo 'package_bumped=${{ steps.bump_signed.outputs.package_bumped }}' >> "$GITHUB_OUTPUT"
           else
             echo 'no_bumps=${{ steps.bump_unsigned.outputs.no_bumps }}' >> "$GITHUB_OUTPUT"
             echo 'version=${{ steps.bump_unsigned.outputs.version }}' >> "$GITHUB_OUTPUT"
+            echo 'package_bumped=${{ steps.bump_unsigned.outputs.package_bumped }}' >> "$GITHUB_OUTPUT"
           fi
 
+  # Build and publish to PyPI, then create the GitHub Release. Trusted
+  # Publishing (OIDC) via the `pypi` environment, with a token fallback.
   pypi-publish:
     name: pypi-publish
     needs: [release]
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && needs.release.result == 'success' && needs.release.outputs.no_bumps == 'false'
+      github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && needs.release.result == 'success'
+      && needs.release.outputs.package_bumped == 'true'
     runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/project/multicz-go-deps-plugin/
     permissions:
       contents: write
-      id-token: write   # Trusted Publishing (OIDC) - do NOT add a token/password
+      id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -348,7 +421,10 @@ jobs:
       - name: Install multicz
         run: uv tool install multicz
       - name: Build wheel and sdist
-        run: uv build --out-dir dist && ls -l dist
+        run: |
+          set -euo pipefail
+          uv build --out-dir dist
+          ls -l dist
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
@@ -360,6 +436,10 @@ jobs:
         run: |
           set -euo pipefail
           version="${{ needs.release.outputs.version }}"
+          # multicz tags with tag_format = "v{version}" (e.g. v1.0.0). Use the
+          # same tag here: a bare "${version}" tag does not exist when
+          # release-notes runs (it returns empty notes) and `gh release
+          # create` would then create a duplicate tag.
           tag="v${version}"
           notes=$(uv tool run multicz release-notes --tag "$tag")
           gh release create "$tag" --title "$tag" --notes "$notes" dist/*
