@@ -68,9 +68,7 @@ class GoDepsPlugin(BasePlugin):
             tuple[Path, tuple[str, ...]], tuple[frozenset[Path], str | None]
         ] = {}
 
-    def _packages(
-        self, ctx: OwnershipContext | PluginContext
-    ) -> dict[str, tuple[str, ...]]:
+    def _packages(self, ctx: OwnershipContext | PluginContext) -> dict[str, tuple[str, ...]]:
         """``{component: (go-package-import-path, ...)}`` from
         ``[plugins.go-deps.packages]``. A component missing from this
         map has nothing for this plugin to say about it.
@@ -109,9 +107,7 @@ class GoDepsPlugin(BasePlugin):
             if result.returncode == 0:
                 outcome = (
                     frozenset(
-                        Path(line).resolve()
-                        for line in result.stdout.splitlines()
-                        if line.strip()
+                        Path(line).resolve() for line in result.stdout.splitlines() if line.strip()
                     ),
                     None,
                 )
@@ -183,9 +179,7 @@ class GoDepsPlugin(BasePlugin):
             return False
         return any((ctx.repo / path).resolve().parent in dep_dirs for path in paths)
 
-    def enrich_changelog(
-        self, ctx: PluginContext, component: str
-    ) -> list[ChangelogEntry]:
+    def enrich_changelog(self, ctx: PluginContext, component: str) -> list[ChangelogEntry]:
         """Name the imported packages behind a bump the paths did not explain.
 
         For each commit the plan attributes to ``component`` without any
@@ -227,6 +221,4 @@ class GoDepsPlugin(BasePlugin):
                 lines.append(f"Import {names} changed (`{sha[:7]}`)")
         if not lines:
             return []
-        return [
-            ChangelogEntry(section=section, component=component, lines=tuple(lines))
-        ]
+        return [ChangelogEntry(section=section, component=component, lines=tuple(lines))]

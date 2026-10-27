@@ -33,12 +33,8 @@ def lock(**versions: str) -> str:
     return f"version = 1\n{blocks}"
 
 
-BASE = lock(
-    demo="1.0.0", requests="2.0", ruff="0.1", pytest="8.0", zensical="0.1", idna="3.0"
-)
-HEAD = lock(
-    demo="1.0.0", requests="2.1", ruff="0.2", pytest="8.1", zensical="0.2", idna="3.0"
-)
+BASE = lock(demo="1.0.0", requests="2.0", ruff="0.1", pytest="8.0", zensical="0.1", idna="3.0")
+HEAD = lock(demo="1.0.0", requests="2.1", ruff="0.2", pytest="8.1", zensical="0.2", idna="3.0")
 
 
 def git(*args: str) -> str:
@@ -123,18 +119,14 @@ def test_the_type_follows_the_runtime_membership() -> None:
 def test_prepare_stores_one_lock_per_dependency(repo: str, tmp_path: Path) -> None:
     out = tmp_path / "out"
     assert split.prepare(repo, str(out)) == 4
-    assert [path.name for path in sorted(out.glob("*.msg"))] == [
-        f"{n:02}.msg" for n in range(1, 5)
-    ]
+    assert [path.name for path in sorted(out.glob("*.msg"))] == [f"{n:02}.msg" for n in range(1, 5)]
     assert (out / "01.msg").read_text() == "fix(deps): bump requests from 2.0 to 2.1"
     assert (out / "base").read_text() == repo
     assert Path("uv.lock").read_text() == HEAD
     assert git("status", "--porcelain") == ""
 
 
-def test_prepare_upgrades_cumulatively(
-    repo: str, uv: list[str], tmp_path: Path
-) -> None:
+def test_prepare_upgrades_cumulatively(repo: str, uv: list[str], tmp_path: Path) -> None:
     _ = split.prepare(repo, str(tmp_path / "out"))
     assert uv == ["requests==2.1", "pytest==8.1", "ruff==0.2", "zensical==0.2"]
     first = split.locked_versions((tmp_path / "out" / "01.lock").read_text())
@@ -142,9 +134,7 @@ def test_prepare_upgrades_cumulatively(
 
 
 @pytest.mark.usefixtures("uv")
-def test_a_head_changing_more_than_the_lock_is_not_split(
-    repo: str, tmp_path: Path
-) -> None:
+def test_a_head_changing_more_than_the_lock_is_not_split(repo: str, tmp_path: Path) -> None:
     _ = Path("pyproject.toml").write_text(PYPROJECT + "# touched\n")
     git("commit", "-q", "-am", "chore: touch")
     assert split.prepare(repo, str(tmp_path / "out")) == 0
@@ -152,17 +142,13 @@ def test_a_head_changing_more_than_the_lock_is_not_split(
 
 @pytest.mark.usefixtures("uv")
 def test_a_single_dependency_is_not_split(repo: str, tmp_path: Path) -> None:
-    _ = Path("uv.lock").write_text(
-        lock(demo="1.0.0", requests="2.1", ruff="0.1", pytest="8.0")
-    )
+    _ = Path("uv.lock").write_text(lock(demo="1.0.0", requests="2.1", ruff="0.1", pytest="8.0"))
     git("commit", "-q", "-am", "chore: one bump")
     assert split.prepare(repo, str(tmp_path / "out")) == 0
 
 
 @pytest.mark.usefixtures("uv")
-def test_a_regenerated_lock_that_differs_is_not_split(
-    repo: str, tmp_path: Path
-) -> None:
+def test_a_regenerated_lock_that_differs_is_not_split(repo: str, tmp_path: Path) -> None:
     _ = Path("uv.lock").write_text(HEAD.replace('"3.0"', '"3.1"'))
     git("commit", "-q", "-am", "chore: transitive")
     assert split.prepare(repo, str(tmp_path / "out")) == 0

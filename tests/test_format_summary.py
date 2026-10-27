@@ -20,9 +20,7 @@ spec.loader.exec_module(fs)
 def report(tmp_path: Path) -> Callable[[str, Any], str]:
     def write(name: str, content: Any) -> str:
         path = tmp_path / name
-        _ = path.write_text(
-            content if isinstance(content, str) else json.dumps(content)
-        )
+        _ = path.write_text(content if isinstance(content, str) else json.dumps(content))
         return str(path)
 
     return write
@@ -37,8 +35,7 @@ def summary_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def test_table_escapes_cells() -> None:
     assert (
-        fs.table(["a", "b"], [("x|y", "l1\nl2")])
-        == "| a | b |\n| --- | --- |\n| x\\|y | l1 l2 |"
+        fs.table(["a", "b"], [("x|y", "l1\nl2")]) == "| a | b |\n| --- | --- |\n| x\\|y | l1 l2 |"
     )
 
 
@@ -69,9 +66,7 @@ def test_a_missing_report_is_explained(call: Callable[[str | None], str]) -> Non
     assert "No report was produced" in call(None)
 
 
-def finding(
-    code: str | None = "F401", filename: str = "src/a.py", row: int = 3
-) -> dict[str, Any]:
+def finding(code: str | None = "F401", filename: str = "src/a.py", row: int = 3) -> dict[str, Any]:
     return {
         "code": code,
         "filename": filename,
@@ -85,9 +80,7 @@ def test_ruff_check_without_findings(report: Callable[[str, Any], str]) -> None:
 
 
 def test_ruff_check_lists_findings_in_order(report: Callable[[str, Any], str]) -> None:
-    text = fs.ruff_check(
-        report("r.json", [finding(row=9), finding("E1", "src/a.py", 2)])
-    )
+    text = fs.ruff_check(report("r.json", [finding(row=9), finding("E1", "src/a.py", 2)]))
     assert text.startswith("## ❌ ruff check\n\n2 finding(s).")
     assert text.index("a.py:2") < text.index("a.py:9")
     assert "unused \\| import" in text
@@ -180,9 +173,7 @@ def test_bandit_clean_and_dirty(report: Callable[[str, Any], str]) -> None:
     assert "628 lines scanned" in fs.bandit_summary(
         report("b.json", {"results": [], "metrics": {"_totals": {"loc": 628}}})
     )
-    assert "No security issue found.\n" in fs.bandit_summary(
-        report("b.json", {"results": []})
-    )
+    assert "No security issue found.\n" in fs.bandit_summary(report("b.json", {"results": []}))
     result = {
         "issue_severity": "HIGH",
         "test_id": "B602",
@@ -230,12 +221,8 @@ def test_pip_audit(report: Callable[[str, Any], str]) -> None:
 @pytest.mark.parametrize(
     ("status", "icon"), [("success", "✅"), ("failure", "❌"), ("cancelled", "⚠️")]
 )
-def test_text_summary(
-    report: Callable[[str, Any], str], status: str, icon: str
-) -> None:
-    assert fs.text_summary("osv", report("o.txt", "output"), status).startswith(
-        f"## {icon} osv"
-    )
+def test_text_summary(report: Callable[[str, Any], str], status: str, icon: str) -> None:
+    assert fs.text_summary("osv", report("o.txt", "output"), status).startswith(f"## {icon} osv")
 
 
 def test_text_summary_without_output(report: Callable[[str, Any], str]) -> None:
@@ -357,9 +344,7 @@ def test_main_publish_reads_the_job_environment(
     assert "releases/tag/1.2.3" in summary_file.read_text()
 
 
-def pyright_report(
-    *diagnostics: dict[str, Any], errors: int = 0, warnings: int = 0
-) -> Any:
+def pyright_report(*diagnostics: dict[str, Any], errors: int = 0, warnings: int = 0) -> Any:
     return {
         "generalDiagnostics": list(diagnostics),
         "summary": {
@@ -418,9 +403,7 @@ def test_pyright_warnings_alone_are_not_a_failure(
     report: Callable[[str, Any], str],
 ) -> None:
     path = report("p.json", pyright_report(diagnostic(severity="warning"), warnings=1))
-    assert fs.pyright_summary(path).startswith(
-        "## ⚠️ pyright\n\n0 error(s), 1 warning(s)"
-    )
+    assert fs.pyright_summary(path).startswith("## ⚠️ pyright\n\n0 error(s), 1 warning(s)")
 
 
 def test_pyright_without_a_report_says_so() -> None:

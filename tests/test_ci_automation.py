@@ -90,9 +90,7 @@ def paged(items: list[Any]) -> list[list[Any]]:
     return [items]
 
 
-def resign(
-    pulls: list[Any], commits: list[Any], permission: str = "admin"
-) -> list[str]:
+def resign(pulls: list[Any], commits: list[Any], permission: str = "admin") -> list[str]:
     calls: list[str] = []
 
     def respond(endpoint: str, *args: Any, **kwargs: Any) -> Any:
@@ -274,9 +272,7 @@ def test_checks_are_ready_once_every_required_check_succeeded() -> None:
 
 
 def test_a_missing_or_pending_required_check_is_not_ready() -> None:
-    assert not ci.checks_ready(
-        [run_check("lint", "success")], NO_STATUS, {"lint", "test"}
-    )
+    assert not ci.checks_ready([run_check("lint", "success")], NO_STATUS, {"lint", "test"})
     pending = [run_check("lint", "success"), run_check("test", None, 2)]
     assert not ci.checks_ready(pending, NO_STATUS, {"lint", "test"})
 
@@ -315,9 +311,7 @@ def test_required_checks_come_from_the_active_rulesets() -> None:
         {"type": "required_signatures"},
         {
             "type": "required_status_checks",
-            "parameters": {
-                "required_status_checks": [{"context": "lint"}, {"context": "test"}]
-            },
+            "parameters": {"required_status_checks": [{"context": "lint"}, {"context": "test"}]},
         },
     ]
     with patch.object(ci, "api", return_value=rules) as client:
@@ -326,10 +320,7 @@ def test_required_checks_come_from_the_active_rulesets() -> None:
 
 
 def labelled(number: int, *stamps: str) -> list[Any]:
-    return [
-        {"event": "labeled", "created_at": s, "label": {"name": "auto-merge"}}
-        for s in stamps
-    ]
+    return [{"event": "labeled", "created_at": s, "label": {"name": "auto-merge"}} for s in stamps]
 
 
 def queued_pull(number: int, labelled_with: tuple[str, ...] = ("auto-merge",)) -> Any:
@@ -528,9 +519,7 @@ def dependabot(**changes: Any) -> dict[str, Any]:
     )
 
 
-def label_run(
-    pr: dict[str, Any], commits: list[Any], comments: list[Any] | None = None
-) -> Any:
+def label_run(pr: dict[str, Any], commits: list[Any], comments: list[Any] | None = None) -> Any:
     def respond(endpoint: str, *args: Any, **kwargs: Any) -> Any:
         if endpoint.endswith("/comments?per_page=100"):
             return paged(comments or [])
@@ -552,11 +541,7 @@ def label_run(
 
 
 def posted(client: Any, suffix: str) -> list[Any]:
-    return [
-        c
-        for c in client.call_args_list
-        if c.args[0].endswith(suffix) and len(c.args) > 1
-    ]
+    return [c for c in client.call_args_list if c.args[0].endswith(suffix) and len(c.args) > 1]
 
 
 def test_a_signed_minor_bump_is_queued_for_merging() -> None:
@@ -579,9 +564,7 @@ def test_a_major_bump_gets_one_notice_and_waits_for_a_maintainer() -> None:
     client = label_run(major, [commit(True)])
     assert not posted(client, "/issues/5/labels")
     assert ci.MAJOR_NOTICE in posted(client, "/issues/5/comments")[0].args[2]["body"]
-    assert posted(client, "/issues/5/assignees")[0].args[2] == {
-        "assignees": ["goabonga"]
-    }
+    assert posted(client, "/issues/5/assignees")[0].args[2] == {"assignees": ["goabonga"]}
 
 
 def test_a_major_bump_is_announced_only_once() -> None:
@@ -747,9 +730,7 @@ def test_the_queue_refuses_a_base_that_is_neither_main_nor_an_issue_branch(
         ci.base_branch()
 
 
-def test_replaying_onto_an_issue_branch_never_touches_main(
-    issue_base: str, tmp_path: Path
-) -> None:
+def test_replaying_onto_an_issue_branch_never_touches_main(issue_base: str, tmp_path: Path) -> None:
     calls = []
 
     def fake_git(*args: str) -> str:
@@ -766,9 +747,7 @@ def test_replaying_onto_an_issue_branch_never_touches_main(
     assert not any("main" in part for call in calls for part in call)
 
 
-def test_merging_fast_forwards_the_issue_branch(
-    issue_base: str, tmp_path: Path
-) -> None:
+def test_merging_fast_forwards_the_issue_branch(issue_base: str, tmp_path: Path) -> None:
     (tmp_path / "merge-base-sha").write_text("1" * 40)
 
     def fake_git(*args: str) -> str:
@@ -776,9 +755,7 @@ def test_merging_fast_forwards_the_issue_branch(
 
     with (
         patch.object(ci, "git", side_effect=fake_git),
-        patch.object(
-            ci, "pull_request", return_value=pull(base=ISSUE, labels=("auto-merge",))
-        ),
+        patch.object(ci, "pull_request", return_value=pull(base=ISSUE, labels=("auto-merge",))),
         patch.object(ci, "check_labeller"),
         patch.object(ci, "authenticated_git") as push,
         patch.object(ci, "api") as client,
@@ -829,9 +806,7 @@ def test_an_issue_branch_does_not_wait_for_a_release(
 ) -> None:
     monkeypatch.setenv("QUEUE_DIR", str(tmp_path))
     with (
-        patch.object(
-            ci, "pull_request", return_value=pull(base=ISSUE, labels=("auto-merge",))
-        ),
+        patch.object(ci, "pull_request", return_value=pull(base=ISSUE, labels=("auto-merge",))),
         patch.object(ci, "queue_ahead", return_value=[]),
         patch.object(ci, "pending_release") as pending,
         patch.object(ci.time, "sleep") as sleep,
@@ -841,9 +816,7 @@ def test_an_issue_branch_does_not_wait_for_a_release(
     sleep.assert_not_called()
 
 
-def test_pull_requests_into_an_issue_branch_are_re_signed(
-    env: Path, issue_base: str
-) -> None:
+def test_pull_requests_into_an_issue_branch_are_re_signed(env: Path, issue_base: str) -> None:
     resign([pull(base=issue_base)], [commit(False)])
     assert outputs(env) == {"number": "9", "base": issue_base, "needed": "true"}
 

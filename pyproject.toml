@@ -81,11 +81,15 @@ check_untyped_defs = true
 ignore_missing_imports = true
 
 [tool.ruff]
+line-length = 100
 target-version = "py312"
-line-length = 88
+src = ["src", "tests"]
+extend-exclude = [".venv", "dist", "build"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "SIM"]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+# E501 (line length) is enforced by the formatter, not the linter: fixtures,
+# message templates and the job-summary tables legitimately run past 100 columns.
 ignore = ["E501"]
 
 [tool.ruff.format]

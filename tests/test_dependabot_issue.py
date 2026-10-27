@@ -11,9 +11,7 @@ import pytest
 
 SCRIPTS = Path(__file__).parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-spec = importlib.util.spec_from_file_location(
-    "dependabot_issue", SCRIPTS / "dependabot_issue.py"
-)
+spec = importlib.util.spec_from_file_location("dependabot_issue", SCRIPTS / "dependabot_issue.py")
 assert spec is not None and spec.loader is not None
 tracker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tracker)
@@ -42,9 +40,7 @@ def issue(
 class Api:
     """A GitHub stub: the pull request, the issues of the repository, the writes."""
 
-    def __init__(
-        self, issues: list[dict[str, Any]], body: str | None = "Release notes"
-    ) -> None:
+    def __init__(self, issues: list[dict[str, Any]], body: str | None = "Release notes") -> None:
         self.issues = issues
         self.pull = {"title": TITLE, "body": body}
         self.writes: list[tuple[str, str, Any]] = []
@@ -117,16 +113,12 @@ def test_link_restores_the_keyword_after_dependabot_rewrote_the_description() ->
 
 
 def test_link_renames_the_issue_after_the_pull_request() -> None:
-    stub = Api(
-        [issue(title="chore(deps): bump requests from 1 to 2")], body="Closes #40"
-    )
+    stub = Api([issue(title="chore(deps): bump requests from 1 to 2")], body="Closes #40")
     run(stub, "link")
     assert stub.writes == [("PATCH", f"repos/{REPO}/issues/40", {"title": TITLE})]
 
 
-@pytest.mark.parametrize(
-    ("merged", "reason"), [(True, "completed"), (False, "not_planned")]
-)
+@pytest.mark.parametrize(("merged", "reason"), [(True, "completed"), (False, "not_planned")])
 def test_close_gives_the_reason_of_the_pull_request(merged: bool, reason: str) -> None:
     stub = Api([issue()])
     run(stub, "close", merged)

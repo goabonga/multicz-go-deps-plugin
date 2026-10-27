@@ -7,9 +7,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from .conftest import make_ctx
 
 from multicz_go_deps import GoDepsPlugin
+
+from .conftest import make_ctx
 
 
 def test_plugin_name_matches_entry_point():

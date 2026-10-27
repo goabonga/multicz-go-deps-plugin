@@ -6,10 +6,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from .conftest import make_ctx
 from multicz.plugins import Severity
 
 from multicz_go_deps import GoDepsPlugin
+
+from .conftest import make_ctx
 
 PACKAGES = {"api": "./cmd/api", "worker": "./cmd/worker"}
 
@@ -41,9 +42,7 @@ def test_strict_makes_it_an_error_and_aborts_the_bump(broken_api: Path):
     ctx.plugin_config["strict"] = True
     plugin = GoDepsPlugin()
     assert [v.severity for v in plugin.validate(ctx)] == [Severity.error]
-    assert [(v.severity, v.component) for v in plugin.post_plan(ctx)] == [
-        (Severity.error, "api")
-    ]
+    assert [(v.severity, v.component) for v in plugin.post_plan(ctx)] == [(Severity.error, "api")]
 
 
 def test_post_plan_does_not_gate_without_strict(broken_api: Path):
@@ -55,14 +54,11 @@ def test_strict_must_be_a_boolean(go_project: Path):
     ctx.plugin_config["strict"] = "yes"
     [violation] = GoDepsPlugin().validate(ctx)
     assert (
-        violation.severity == Severity.error
-        and "strict must be true or false" in violation.message
+        violation.severity == Severity.error and "strict must be true or false" in violation.message
     )
 
 
-def test_a_missing_go_toolchain_is_reported(
-    go_project: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_a_missing_go_toolchain_is_reported(go_project: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PATH", "")
     violations = GoDepsPlugin().validate(make_ctx(go_project, PACKAGES))
     assert [v.component for v in violations] == ["api", "worker"]
