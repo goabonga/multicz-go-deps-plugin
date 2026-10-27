@@ -48,9 +48,7 @@ def blob(revision: str, path: str) -> str:
 def locked_versions(text: str) -> dict[str, list[str]]:
     versions: dict[str, list[str]] = {}
     for package in tomllib.loads(text).get("package", []):
-        versions.setdefault(normalize(package["name"]), []).append(
-            package.get("version", "")
-        )
+        versions.setdefault(normalize(package["name"]), []).append(package.get("version", ""))
     return {name: sorted(found) for name, found in versions.items()}
 
 
@@ -66,9 +64,7 @@ def declared_packages(pyproject: str = PYPROJECT) -> set[str]:
     return {requirement_name(spec) for spec in specs}
 
 
-def updates(
-    base_lock: str, head_lock: str, declared: set[str]
-) -> list[tuple[str, str, str]]:
+def updates(base_lock: str, head_lock: str, declared: set[str]) -> list[tuple[str, str, str]]:
     """The declared dependencies whose locked version moved, as (name, old, new)."""
     old, new = locked_versions(base_lock), locked_versions(head_lock)
     moved: list[tuple[str, str, str]] = []
@@ -82,9 +78,7 @@ def updates(
 
 
 def runtime_first(moved: list[tuple[str, str, str]]) -> list[tuple[str, str, str]]:
-    return sorted(
-        moved, key=lambda entry: (not is_runtime_dependency(entry[0]), entry[0])
-    )
+    return sorted(moved, key=lambda entry: (not is_runtime_dependency(entry[0]), entry[0]))
 
 
 def subject(name: str, old: str, new: str) -> str:

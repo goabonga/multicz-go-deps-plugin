@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Chris <goabonga@pm.me>
 
+
 import argparse
 import os
 import sys
@@ -12,21 +13,6 @@ LICENSE_LINES = [
     "# Copyright (c) 2026 Chris <goabonga@pm.me>",
 ]
 LICENSE_HEADER = "\n".join(LICENSE_LINES)
-
-# Directories that never carry project sources: VCS metadata, virtualenvs,
-# build output and tool caches.
-PRUNE_DIRS = {
-    ".git",
-    ".venv",
-    "venv",
-    "build",
-    "dist",
-    "__pycache__",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".pytest_cache",
-    "node_modules",
-}
 
 
 def has_license(lines: list[str]) -> bool:
@@ -68,6 +54,25 @@ def check_license(file_path: str) -> bool:
     return has_license(lines)
 
 
+# Directories that never carry project sources: virtualenvs, VCS
+# metadata, build output and tool caches. Pruned from the walk so a
+# scan rooted at "." does not flag third-party files (e.g. a wheel's
+# bundled Cargo.toml under .venv).
+PRUNE_DIRS = {
+    ".git",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "site",
+    "__pycache__",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    "node_modules",
+}
+
+
 def process_directory(root: str, extensions: list[str], check_only: bool) -> int:
     missing_files = []
 
@@ -103,9 +108,7 @@ def process_directory(root: str, extensions: list[str], check_only: bool) -> int
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Add or check SPDX license headers.")
-    parser.add_argument(
-        "--path", type=str, default=".", help="Root directory to process"
-    )
+    parser.add_argument("--path", type=str, default=".", help="Root directory to process")
     parser.add_argument(
         "--types",
         type=str,

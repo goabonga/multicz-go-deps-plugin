@@ -115,9 +115,7 @@ def pr_write_token():
     """The token pull request comments and label removals are written with."""
     token = os.environ.get("PR_WRITE_TOKEN")
     if not token:
-        raise ValueError(
-            "PR_WRITE_TOKEN is required to comment on or relabel the pull request"
-        )
+        raise ValueError("PR_WRITE_TOKEN is required to comment on or relabel the pull request")
     return token
 
 
@@ -152,9 +150,7 @@ def open_pulls(branch):
 
 
 def commits_of(number):
-    pages = api(
-        f"repos/{repository()}/pulls/{number}/commits?per_page=100", paginate=True
-    )
+    pages = api(f"repos/{repository()}/pulls/{number}/commits?per_page=100", paginate=True)
     return [commit for page in pages for commit in page]
 
 
@@ -221,9 +217,7 @@ def label_dependabot():
     validate_head(sha, branch)
     pulls = [pull for pull in open_pulls(branch) if dependabot_pull(pull)]
     if len(pulls) != 1 or pulls[0]["head"]["sha"] != sha:
-        print(
-            "CI ran on a commit that is no longer the head of an open Dependabot pull request"
-        )
+        print("CI ran on a commit that is no longer the head of an open Dependabot pull request")
         return
     pr = pulls[0]
     if any(label["name"] == os.environ["MERGE_LABEL"] for label in pr["labels"]):
@@ -242,9 +236,7 @@ def label_dependabot():
             f"repos/{repository()}/issues/{pr['number']}/comments?per_page=100",
             paginate=True,
         )
-        if not any(
-            MAJOR_NOTICE in comment["body"] for page in pages for comment in page
-        ):
+        if not any(MAJOR_NOTICE in comment["body"] for page in pages for comment in page):
             api(
                 f"repos/{repository()}/issues/{pr['number']}/comments",
                 "POST",
@@ -256,9 +248,7 @@ def label_dependabot():
                 token=pr_write_token(),
             )
             assign(pr["number"], token_owner())
-        print(
-            f"#{pr['number']} is a major update and waits for a maintainer's label"
-        )
+        print(f"#{pr['number']} is a major update and waits for a maintainer's label")
         return
     add_merge_label(pr["number"])
     print(f"#{pr['number']} queued for merging")
@@ -281,9 +271,7 @@ def merge_authorized(pr, sha):
 
 def check_labeller():
     login = quote(os.environ["LABELLER"], safe="")
-    permission = api(f"repos/{repository()}/collaborators/{login}/permission")[
-        "permission"
-    ]
+    permission = api(f"repos/{repository()}/collaborators/{login}/permission")["permission"]
     if permission not in {"admin", "maintain", "write"}:
         raise ValueError("The labeller no longer has write access")
 
@@ -307,9 +295,7 @@ def configure_signing():
     ):
         if not os.environ.get(name):
             raise ValueError(f"Missing {name}")
-    home = Path(
-        tempfile.mkdtemp(prefix=SIGNING_HOME_PREFIX, dir=os.environ["RUNNER_TEMP"])
-    )
+    home = Path(tempfile.mkdtemp(prefix=SIGNING_HOME_PREFIX, dir=os.environ["RUNNER_TEMP"]))
     home.chmod(0o700)
     os.environ["GNUPGHOME"] = str(home)
     # Register cleanup before any import or key validation can fail.
@@ -470,9 +456,7 @@ def validate_resign():
     number = pulls[0]["number"]
     output("number", number)
     output("base", pulls[0]["base"]["ref"])
-    unsigned = [
-        commit["sha"][:7] for commit in commits_of(number) if not verified(commit)
-    ]
+    unsigned = [commit["sha"][:7] for commit in commits_of(number) if not verified(commit)]
     if not unsigned:
         print(f"Every commit of #{number} is signed")
         output("needed", "false")
@@ -511,8 +495,7 @@ def checks_ready(runs, statuses, required):
             latest[key] = check
     checks = [c for c in latest.values() if not c["name"].startswith(MERGE_JOB_PREFIX)]
     if any(
-        c["status"] == "completed"
-        and c["conclusion"] not in {"success", "neutral", "skipped"}
+        c["status"] == "completed" and c["conclusion"] not in {"success", "neutral", "skipped"}
         for c in checks
     ):
         raise ValueError("A check failed")
@@ -539,11 +522,7 @@ def wait_checks(signed=False):
     deadline = time.monotonic() + 25 * 60
     while time.monotonic() < deadline:
         pr = pull_request()
-        if (
-            signed
-            and sha != os.environ["HEAD_SHA"]
-            and pr["head"]["sha"] == os.environ["HEAD_SHA"]
-        ):
+        if signed and sha != os.environ["HEAD_SHA"] and pr["head"]["sha"] == os.environ["HEAD_SHA"]:
             # GitHub updates the pull request head shortly after the signed push.
             time.sleep(5)
             continue
@@ -587,8 +566,7 @@ def queue_ahead(number, base=None):
             event["created_at"]
             for page in events
             for event in page
-            if event["event"] == "labeled"
-            and (event.get("label") or {}).get("name") == label
+            if event["event"] == "labeled" and (event.get("label") or {}).get("name") == label
         ]
         if labelled:
             queued.append((max(labelled), pull["number"]))

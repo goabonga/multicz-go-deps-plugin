@@ -63,9 +63,7 @@ def commit_type(changed: list[str], text: str) -> str:
 def rewrite(changed: list[str], subject: str, body: str) -> str:
     """The Conventional Commit message of a Dependabot commit."""
     text = LEADING_TYPE.sub("", subject)
-    body = "\n".join(
-        line for line in body.splitlines() if not TRAILER.match(line)
-    ).strip()
+    body = "\n".join(line for line in body.splitlines() if not TRAILER.match(line)).strip()
     message = f"{commit_type(changed, text)}: {text}"
     return f"{message}\n\n{body}" if body else message
 
