@@ -38,8 +38,17 @@ jobs:
           cache-suffix: ${{ github.job }}
           python-version: "3.12"
       - run: uv sync --frozen --only-group dev
-      - run: uv run --no-sync ruff check --output-format=github src tests
-      - run: uv run --no-sync ruff format --check src tests
+      - name: Lint
+        run: uv run --no-sync ruff check --output-format=json --output-file=ruff.json src tests
+      - name: Summarize ruff check
+        if: ${{ !cancelled() }}
+        run: python3 scripts/format_summary.py ruff-check ruff.json
+      - name: Format check
+        if: ${{ !cancelled() }}
+        run: uv run --no-sync ruff format --check src tests 2>&1 | tee ruff-format.txt
+      - name: Summarize ruff format
+        if: ${{ !cancelled() }}
+        run: python3 scripts/format_summary.py ruff-format ruff-format.txt
 
   type-check:
     name: type-check
@@ -53,7 +62,13 @@ jobs:
           cache-suffix: ${{ github.job }}
           python-version: "3.12"
       - run: uv sync --frozen
-      - run: uv run --no-sync mypy src
+      - name: Type-check
+        run: uv run --no-sync mypy src 2>&1 | tee mypy.txt
+      - name: Summarize mypy
+        if: ${{ !cancelled() }}
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: python3 scripts/format_summary.py text mypy mypy.txt
 
   pyright:
     name: pyright
@@ -67,7 +82,11 @@ jobs:
           cache-suffix: ${{ github.job }}
           python-version: "3.12"
       - run: uv sync --frozen
-      - run: uv run --no-sync pyright
+      - name: Type-check
+        run: uv run --no-sync pyright --outputjson > pyright.json
+      - name: Summarize pyright
+        if: ${{ !cancelled() }}
+        run: python3 scripts/format_summary.py pyright pyright.json
 
   license-headers:
     name: license-headers
@@ -82,11 +101,16 @@ jobs:
           python-version: "3.12"
       - name: Check SPDX headers
         run: |
-          uv run --no-project python scripts/add_license_header.py --path src --types py --check
-          uv run --no-project python scripts/add_license_header.py --path tests --types py --check
-          uv run --no-project python scripts/add_license_header.py --path scripts --types py --check
-          uv run --no-project python scripts/add_license_header.py --path .github --types yml --check
-          uv run --no-project python scripts/add_license_header.py --path . --types toml --check
+          {
+            uv run --no-project python scripts/add_license_header.py --path src --types py --check
+            uv run --no-project python scripts/add_license_header.py --path tests --types py --check
+            uv run --no-project python scripts/add_license_header.py --path scripts --types py --check
+            uv run --no-project python scripts/add_license_header.py --path .github --types yml --check
+            uv run --no-project python scripts/add_license_header.py --path . --types toml --check
+          } 2>&1 | tee headers.txt
+      - name: Summarize license headers
+        if: ${{ !cancelled() }}
+        run: python3 scripts/format_summary.py headers headers.txt
 
   test:
     name: test
@@ -109,6 +133,9 @@ jobs:
             --cov-report=xml:coverage.xml \
             --junitxml=junit.xml \
             -o junit_family=legacy
+      - name: Summarize tests and coverage
+        if: ${{ !cancelled() }}
+        run: python3 scripts/format_summary.py pytest --junit junit.xml --coverage coverage.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
@@ -137,7 +164,11 @@ jobs:
           enable-cache: true
           cache-suffix: ${{ github.job }}
           python-version: "3.12"
-      - run: uvx --from 'bandit[toml]' bandit -c pyproject.toml --recursive src
+      - name: Run Bandit
+        run: uvx --from 'bandit[toml]' bandit -c pyproject.toml --recursive src --format json --output bandit.json
+      - name: Summarize bandit
+        if: ${{ !cancelled() }}
+        run: python3 scripts/format_summary.py bandit bandit.json
 
   pip-audit:
     name: pip-audit
@@ -154,7 +185,11 @@ jobs:
         # `pip-audit --path .venv` finds no package in a uv venv and
         # audits nothing, so audit the pinned lock export instead.
         run: uv export --frozen --all-groups --no-emit-project --no-hashes --output-file requirements.txt
-      - run: uvx pip-audit -r requirements.txt --no-deps --disable-pip
+      - name: Run pip-audit
+        run: uvx pip-audit -r requirements.txt --no-deps --disable-pip --format json --output audit.json
+      - name: Summarize pip-audit
+        if: ${{ !cancelled() }}
+        run: python3 scripts/format_summary.py pip-audit audit.json
 
   osv-scanner:
     name: osv-scanner
@@ -170,7 +205,13 @@ jobs:
             -o "$HOME/.local/bin/osv-scanner"
           chmod +x "$HOME/.local/bin/osv-scanner"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - run: osv-scanner scan source --lockfile=uv.lock
+      - name: Run OSV-Scanner
+        run: osv-scanner scan source --lockfile=uv.lock 2>&1 | tee osv-scanner.txt
+      - name: Summarize osv-scanner
+        if: ${{ !cancelled() }}
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: python3 scripts/format_summary.py text osv-scanner osv-scanner.txt
 
   release:
     name: release
@@ -301,3 +342,11 @@ jobs:
           tag="v${version}"
           notes=$(uv tool run multicz release-notes --tag "$tag")
           gh release create "$tag" --title "$tag" --notes "$notes" dist/*
+      - name: Summarize publish
+        if: ${{ !cancelled() }}
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: >-
+          python3 scripts/format_summary.py publish dist
+          --package multicz-go-deps-plugin
+          --version "${{ needs.release.outputs.version }}"
