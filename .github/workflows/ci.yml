@@ -29,7 +29,7 @@ jobs:
   lint:
     name: lint
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -44,7 +44,7 @@ jobs:
   type-check:
     name: type-check
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -58,7 +58,7 @@ jobs:
   license-headers:
     name: license-headers
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -77,7 +77,7 @@ jobs:
   test:
     name: test
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -115,7 +115,7 @@ jobs:
   bandit:
     name: bandit
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -128,7 +128,7 @@ jobs:
   pip-audit:
     name: pip-audit
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -145,7 +145,7 @@ jobs:
   osv-scanner:
     name: osv-scanner
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Install OSV-Scanner
@@ -162,7 +162,7 @@ jobs:
     name: release
     needs: [lint, type-check, license-headers, test, bandit, pip-audit, osv-scanner]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
@@ -252,7 +252,7 @@ jobs:
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/main'
       && needs.release.result == 'success' && needs.release.outputs.no_bumps == 'false'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/project/multicz-go-deps-plugin/
