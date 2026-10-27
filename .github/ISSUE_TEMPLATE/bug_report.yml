@@ -18,6 +18,14 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: multicz
+    attributes:
+      label: multicz version
+      description: "Output of `multicz --version`."
+    validations:
+      required: true
+
   - type: textarea
     id: description
     attributes:
@@ -32,7 +40,11 @@ body:
       label: Steps to Reproduce
       description: >
         How can we reproduce this issue? Include the relevant
-        `[plugins.go-deps]` section of multicz.toml.
+        `[plugins.go-deps]` section of multicz.toml and the `go` error, if any.
+      placeholder: |
+        1. Run `multicz validate`
+        2. ...
+        3. See error
     validations:
       required: true
 
@@ -40,6 +52,7 @@ body:
     id: expected
     attributes:
       label: Expected Behavior
+      description: What did you expect to happen?
     validations:
       required: true
 
@@ -47,32 +60,6 @@ body:
     id: actual
     attributes:
       label: Actual Behavior
+      description: What actually happened? Include the output.
     validations:
       required: true
-
-  - type: dropdown
-    id: python-version
-    attributes:
-      label: Python Version
-      options:
-        - "3.12"
-        - "3.13"
-    validations:
-      required: true
-
-  - type: dropdown
-    id: os
-    attributes:
-      label: Operating System
-      options:
-        - Linux
-        - macOS
-        - Windows
-    validations:
-      required: true
-
-  - type: textarea
-    id: logs
-    attributes:
-      label: Logs / Traceback
-      render: shell
