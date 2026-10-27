@@ -40,6 +40,26 @@ These checks run in CI and gate the release, along with the security scans
 (bandit, pip-audit, osv-scanner). Each CI job writes a summary of its result
 on the run page.
 
+## License headers
+
+Every Python, YAML and TOML file in the repository must start with the
+two-line SPDX header below (after the shebang, if any):
+
+```
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Chris <goabonga@pm.me>
+```
+
+A helper script applies and verifies the headers:
+
+```bash
+# Add missing headers in-place.
+python scripts/add_license_header.py --path . --types py,yml,toml
+
+# Fail with non-zero exit if any file is missing the header.
+python scripts/add_license_header.py --path . --types py,yml,toml --check
+```
+
 ## Branching and pull requests
 
 1. Fork the repository and create a topic branch from `main`, or from the
@@ -98,10 +118,10 @@ version bump and CHANGELOG computed by
 
 | Type | Effect on version | Use it for |
 | --- | --- | --- |
-| `feat` | minor | new capability |
+| `feat` | minor | new user-facing capability |
 | `fix` | patch | bug fix |
 | `perf` | patch | performance improvement |
-| `refactor`, `docs`, `test`, `chore`, `ci`, `build`, `style` | none | maintenance |
+| `refactor`, `docs`, `test`, `chore`, `ci`, `build`, `style` | none | maintenance, no release |
 | `feat!` / `BREAKING CHANGE:` | major | incompatible change |
 
 The subject is at most 72 characters, has no trailing period and a
@@ -109,14 +129,26 @@ lowercase first word after the colon: the signed merge refuses any other
 subject, so the `commit-subject` pre-commit hook and the `commit-subjects`
 CI job check it first.
 
-Only commits that touch the tracked paths (`src/**`, `pyproject.toml`)
-trigger a release. Do not append `Co-Authored-By` trailers.
+Only commits that touch the tracked paths (`src/**`, `pyproject.toml`,
+`uv.lock`) trigger a release.
+
+Examples:
+
+```
+feat: name the imported package behind an import-only bump
+fix: keep the go list error in the validate message
+docs: describe the strict option
+```
+
+Do not append `Co-Authored-By` trailers; the workflow expects a single
+authored release commit per push.
 
 ## Releasing
 
-Releases are automated: on every push to `main`, the `ci` workflow runs
-`multicz bump` (signed commit + tag) and publishes to PyPI. Maintainers do
-not bump versions or edit the changelog by hand. The `chore(release)` commit
+Releases are fully automated. On every push to `main`, the `ci` workflow runs
+`multicz bump --commit --tag --push` and then publishes the bumped package to
+PyPI. Maintainers do not need to bump versions, edit changelogs or create tags
+by hand. The `chore(release)` commit
 pushed back by multicz does not start another run.
 
 ## Reporting bugs and asking for features
