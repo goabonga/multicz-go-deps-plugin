@@ -104,6 +104,11 @@ version bump and CHANGELOG computed by
 | `refactor`, `docs`, `test`, `chore`, `ci`, `build`, `style` | none | maintenance |
 | `feat!` / `BREAKING CHANGE:` | major | incompatible change |
 
+The subject is at most 72 characters, has no trailing period and a
+lowercase first word after the colon: the signed merge refuses any other
+subject, so the `commit-subject` pre-commit hook and the `commit-subjects`
+CI job check it first.
+
 Only commits that touch the tracked paths (`src/**`, `pyproject.toml`)
 trigger a release. Do not append `Co-Authored-By` trailers.
 
