@@ -65,6 +65,30 @@ jobs:
           token: ${{ secrets.AUTO_MERGE_PAT || github.token }}
           persist-credentials: true
 
+      - name: Install uv
+        if: steps.gate.outputs.skip != 'true'
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: false
+
+      - name: Split a grouped lock update per dependency
+        # Runs before the signing key is imported. A group that only
+        # touches uv.lock is regenerated one dependency at a time, so each
+        # gets its own type; anything else stays a single commit.
+        id: split
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: pr
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          BASE_SHA=$(git merge-base "origin/$BASE_REF" HEAD)
+          COUNT=$(python3 "$GITHUB_WORKSPACE/trusted/scripts/split_dependabot_lock.py" \
+            prepare "$BASE_SHA" "$RUNNER_TEMP/split")
+          if [ "$COUNT" -gt 1 ]; then
+            echo "split=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Configure GPG and git identity from the imported key
         if: steps.gate.outputs.skip != 'true'
         working-directory: pr
@@ -85,8 +109,8 @@ jobs:
           git config user.signingkey "$KEY_ID"
           git config commit.gpgsign true
 
-      - name: Rewrite commits with scope-aware messages
-        if: steps.gate.outputs.skip != 'true'
+      - name: Rewrite commits as Conventional Commits
+        if: steps.gate.outputs.skip != 'true' && steps.split.outputs.split != 'true'
         working-directory: pr
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
@@ -98,6 +122,14 @@ jobs:
           # meets pull request code.
           git rebase "$BASE_SHA" \
             --exec "python3 $GITHUB_WORKSPACE/trusted/scripts/rewrite_dependabot_commit.py"
+
+      - name: Commit one dependency per commit
+        if: steps.gate.outputs.skip != 'true' && steps.split.outputs.split == 'true'
+        working-directory: pr
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/trusted/scripts/split_dependabot_lock.py" \
+            commit "$RUNNER_TEMP/split"
 
       - name: Force-push rewritten branch
         if: steps.gate.outputs.skip != 'true'
@@ -137,6 +169,7 @@ jobs:
             echo ""
             echo "PR branch \`${{ github.event.pull_request.head.ref }}\` rewritten:"
             echo ""
-            echo "- Conventional-commits scope inferred from changed files / dev-group membership"
+            echo "- Conventional Commit type inferred: \`ci\`, \`fix(deps)\` (runtime) or \`chore(deps)\` (dev)"
+            echo "- A group that only touches uv.lock is split into one commit per dependency"
             echo "- Authored and GPG-signed as \`$(git config user.name) <$(git config user.email)>\`"
           } >> "$GITHUB_STEP_SUMMARY"
