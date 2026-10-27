@@ -36,6 +36,14 @@ repos:
         language: system
         types: [python]
         require_serial: true
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        files: ^src/.*\.py$
+        pass_filenames: false
+        args: [src]
+        require_serial: true
 
   - repo: local
     hooks:
