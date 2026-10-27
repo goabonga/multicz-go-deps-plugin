@@ -9,6 +9,10 @@ on:
   push:
     branches: [main]
 
+# The quality jobs skip the `chore(release)` commit multicz pushes to main:
+# the run that cut the release already validated the code it carries, and
+# `release` and `pypi-publish` need them, so they are skipped with them.
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -19,6 +23,7 @@ permissions:
 jobs:
   lint:
     name: lint
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -33,6 +38,7 @@ jobs:
 
   type-check:
     name: type-check
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -46,6 +52,7 @@ jobs:
 
   license-headers:
     name: license-headers
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -64,6 +71,7 @@ jobs:
 
   test:
     name: test
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -101,6 +109,7 @@ jobs:
 
   bandit:
     name: bandit
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -113,6 +122,7 @@ jobs:
 
   pip-audit:
     name: pip-audit
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -126,6 +136,7 @@ jobs:
 
   osv-scanner:
     name: osv-scanner
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
