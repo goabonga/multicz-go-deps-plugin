@@ -44,6 +44,13 @@ repos:
         pass_filenames: false
         args: [src]
         require_serial: true
+      - id: pyright
+        name: pyright
+        entry: uv run pyright
+        language: system
+        files: ^src/.*\.py$
+        pass_filenames: false
+        require_serial: true
 
   - repo: local
     hooks:
