@@ -172,6 +172,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # The main-protection ruleset only lets the maintainer push the
+          # release commit and its tag; the workflow token cannot bypass it.
+          token: ${{ secrets.AUTO_MERGE_PAT || github.token }}
           persist-credentials: true
       # NOTE: no python-version pin here - multicz needs Python >=3.12 and
       # `uv tool install multicz` fails under 3.11.
