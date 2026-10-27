@@ -6,21 +6,24 @@ name: dependabot-rewrite
 # `pull_request_target` so the workflow can read GPG_PRIVATE_KEY /
 # GPG_PASSPHRASE (regular `pull_request` runs without secrets on bot events).
 # The workflow body is loaded from `main`, not the PR branch, so no untrusted
-# code runs. The actor gate restricts it to genuine Dependabot PRs.
+# code runs. The gate on the pull request author id (49699333 is
+# dependabot[bot]) restricts it to genuine Dependabot PRs; unlike the actor,
+# the author does not change when someone else re-runs the workflow.
 
-on:
+on:  # zizmor: ignore[dangerous-triggers]
   pull_request_target:
     types: [opened, synchronize, reopened]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   rewrite:
     name: rewrite dependabot commits
-    if: github.actor == 'dependabot[bot]'
-    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.id == 49699333
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write       # force-push the rewritten branch
+      pull-requests: write  # update the PR
     concurrency:
       group: dependabot-rewrite-${{ github.event.pull_request.number }}
       cancel-in-progress: true
