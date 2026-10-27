@@ -678,7 +678,7 @@ def test_an_empty_explicit_token_is_refused() -> None:
     [
         ("feat: add x", "feat: add x\n"),
         ("feat(cli)!: add x", "feat(cli): add x\n"),
-        ("remove: drop y", "remove: drop y\n"),
+        ("revert: drop y", "revert: drop y\n"),
         (
             "fix: a\n\nBody.\nCo-Authored-By: bot <b@x.y>\nBREAKING CHANGE: no\n"
             "Generated with a tool",

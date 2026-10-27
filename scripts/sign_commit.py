@@ -11,13 +11,10 @@ Run by `git rebase --exec` from ci_automation.py, once per replayed commit.
 import re
 import subprocess
 
-# The conventional types, plus the `deprecate` and `remove` types that
-# multicz.toml layers on top of them.
-TYPES = "feat|fix|refactor|test|docs|chore|style|perf|build|ci|revert|deprecate|remove"
+# The conventional types.
+TYPES = "feat|fix|refactor|test|docs|chore|style|perf|build|ci|revert"
 SUBJECT = re.compile(rf"(?:{TYPES})(?:\([a-z0-9-]+\))?: [a-z].{{0,70}}")
-DROPPED_TRAILER = re.compile(
-    r"\s*(?:co-authored-by|signed-off-by|breaking[ _-]change):", re.I
-)
+DROPPED_TRAILER = re.compile(r"\s*(?:co-authored-by|signed-off-by|breaking[ _-]change):", re.I)
 DROPPED_FOOTER = re.compile(r"\s*generated (?:with|by)\b", re.I)
 
 
@@ -32,11 +29,7 @@ def clean_message(text: str) -> str:
     """
     lines = text.splitlines()
     subject = re.sub(r"^([a-z-]+(?:\([^)]*\))?)!: ", r"\1: ", lines[0])
-    if (
-        not SUBJECT.fullmatch(subject)
-        or len(subject) > 72
-        or subject.endswith(".")
-    ):
+    if not SUBJECT.fullmatch(subject) or len(subject) > 72 or subject.endswith("."):
         raise SystemExit("Refusing an invalid Conventional Commit subject")
     body = [
         line
