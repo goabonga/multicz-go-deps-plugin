@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from conftest import make_ctx
+from .conftest import make_ctx
 
 from multicz_go_deps import GoDepsPlugin
 

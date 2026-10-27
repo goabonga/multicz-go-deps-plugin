@@ -54,11 +54,23 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+minversion = "8.0"
+addopts = ["-ra", "--strict-config", "--strict-markers", "--import-mode=importlib"]
 testpaths = ["tests"]
-addopts = [
-    "--cov=multicz_go_deps",
-    "--cov-report=term-missing",
-    "--cov-fail-under=100",
+
+[tool.coverage.run]
+source = ["src/multicz_go_deps"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 100
+exclude_lines = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@(abc\\.)?abstractmethod",
+    "if __name__ == .__main__.:",
 ]
 
 [tool.mypy]

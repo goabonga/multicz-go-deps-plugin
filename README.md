@@ -142,7 +142,7 @@ uv run ruff check src tests
 uv run ruff format --check src tests
 uv run mypy src
 uv run pyright
-uv run pytest
+uv run pytest --cov=multicz_go_deps
 
 # Install the pre-commit + commit-msg hooks.
 uv run pre-commit install

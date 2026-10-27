@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from conftest import make_ctx
+from .conftest import make_ctx
 from multicz.plugins import Severity
 
 from multicz_go_deps import GoDepsPlugin
