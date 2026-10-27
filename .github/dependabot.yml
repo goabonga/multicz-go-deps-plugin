@@ -18,8 +18,9 @@ updates:
     ignore:
       # `hatchling` lives in the `[build-system].requires` table.
       # Dependabot's uv FileUpdater currently cannot write back to that
-      # table. Bump it by hand when needed; pip-audit and osv-scanner
-      # still flag any CVEs in the installed copy.
+      # table (PEP 517 build-system deps are read before the rest of
+      # pyproject.toml is parsed). Bump it by hand when needed; pip-audit
+      # and osv-scanner still flag any CVEs in the installed copy.
       - dependency-name: "hatchling"
     groups:
       # Bundle routine dev tooling bumps into a single weekly PR.
@@ -29,9 +30,10 @@ updates:
           - "ruff"
           - "mypy"
           - "pytest*"
+          - "pyright"
           - "pre-commit"
     commit-message:
-      prefix: "fix(deps)"
+      prefix: "chore(deps)"
       prefix-development: "chore(deps)"
     labels:
       - "dependencies"
@@ -55,6 +57,8 @@ updates:
           - "google/*"
           - "pypa/*"
           - "codecov/*"
+          - "compilerla/*"
+          - "pre-commit/*"
     commit-message:
       prefix: "ci"
     labels:
